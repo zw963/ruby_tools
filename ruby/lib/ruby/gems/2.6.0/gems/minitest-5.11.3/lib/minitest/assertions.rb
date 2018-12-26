@@ -173,11 +173,14 @@ module Minitest
       msg = message(msg, E) { diff exp, act }
       result = assert exp == act, msg
 
-      if exp.nil? then
+      if nil == exp then
         if Minitest::VERSION =~ /^6/ then
           refute_nil exp, "Use assert_nil if expecting nil."
         else
-          $stderr.puts "Use assert_nil if expecting nil from #{caller.first}. This will fail in MT6."
+          where = Minitest.filter_backtrace(caller).first
+          where = where.split(/:in /, 2).first # clean up noise
+
+          warn "DEPRECATED: Use assert_nil if expecting nil from #{where}. This will fail in Minitest 6."
         end
       end
 
@@ -202,8 +205,8 @@ module Minitest
     # For comparing Floats.  Fails unless +exp+ and +act+ have a relative
     # error less than +epsilon+.
 
-    def assert_in_epsilon a, b, epsilon = 0.001, msg = nil
-      assert_in_delta a, b, [a.abs, b.abs].min * epsilon, msg
+    def assert_in_epsilon exp, act, epsilon = 0.001, msg = nil
+      assert_in_delta exp, act, [exp.abs, act.abs].min * epsilon, msg
     end
 
     ##
@@ -367,7 +370,9 @@ module Minitest
     # Fails unless the call returns a true value
 
     def assert_send send_ary, m = nil
-      warn "DEPRECATED: assert_send. From #{caller.first}"
+      where = Minitest.filter_backtrace(caller).first
+      where = where.split(/:in /, 2).first # clean up noise
+      warn "DEPRECATED: assert_send. From #{where}"
 
       recv, msg, *args = send_ary
       m = message(m) {
