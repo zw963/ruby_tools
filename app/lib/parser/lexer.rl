@@ -446,7 +446,7 @@ class Parser::Lexer
     '=>'  => :tASSOC,   '::'  => :tCOLON2,  '===' => :tEQQ,
     '<=>' => :tCMP,     '[]'  => :tAREF,    '[]=' => :tASET,
     '{'   => :tLCURLY,  '}'   => :tRCURLY,  '`'   => :tBACK_REF2,
-    '!@'  => :tBANG,    '&.'  => :tANDDOT,
+    '!@'  => :tBANG,    '&.'  => :tANDDOT,  '.:'  => :tMETHREF
   }
 
   PUNCTUATION_BEGIN = {
@@ -894,27 +894,27 @@ class Parser::Lexer
       end
     else
       # It does not. So this is an actual escape sequence, yay!
-      if current_literal.regexp?
-        # Regular expressions should include escape sequences in their
-        # escaped form. On the other hand, escaped newlines are removed.
+      if current_literal.squiggly_heredoc? && escaped_char == "\n".freeze
+        # Squiggly heredocs like
+        #   <<~-HERE
+        #     1\
+        #     2
+        #   HERE
+        # treat '\' as a line continuation, but still dedent the body, so the heredoc above becomes "12\n".
+        # This information is emitted as is, without escaping,
+        # later this escape sequence (\\\n) gets handled manually in the Lexer::Dedenter
+        current_literal.extend_string(tok, @ts, @te)
+      elsif current_literal.supports_line_continuation_via_slash? && escaped_char == "\n".freeze
+        # Heredocs, regexp and a few other types of literals support line
+        # continuation via \\\n sequence. The code like
+        #   "a\
+        #   b"
+        # must be parsed as "ab"
         current_literal.extend_string(tok.gsub("\\\n".freeze, ''.freeze), @ts, @te)
-      elsif current_literal.heredoc? && escaped_char == "\n".freeze
-        if current_literal.squiggly_heredoc?
-          # Squiggly heredocs like
-          #   <<~-HERE
-          #     1\
-          #     2
-          #   HERE
-          # treat '\' as a line continuation, but still dedent the body, so the heredoc above becomes "12\n".
-          # This information is emitted as is, without escaping,
-          # later this escape sequence (\\n) gets handled manually in the Lexer::Dedenter
-          current_literal.extend_string(tok, @ts, @te)
-        else
-          # Plain heredocs also parse \\n as a line continuation,
-          # but they don't need to know that there was originally a newline in the
-          # code, so we escape it and emit as "  1  2\n"
-          current_literal.extend_string(tok.gsub("\\\n".freeze, ''.freeze), @ts, @te)
-        end
+      elsif current_literal.regexp?
+        # Regular expressions should include escape sequences in their
+        # escaped form. On the other hand, escaped newlines are removed (in cases like "\\C-\\\n\\M-x")
+        current_literal.extend_string(tok.gsub("\\\n".freeze, ''.freeze), @ts, @te)
       else
         current_literal.extend_string(@escape || tok, @ts, @te)
       end
@@ -1039,13 +1039,8 @@ class Parser::Lexer
       if current_literal.end_interp_brace_and_try_closing
         if version?(18, 19)
           emit(:tRCURLY, '}'.freeze, p - 1, p)
-          if @version < 24
-            @cond.lexpop
-            @cmdarg.lexpop
-          else
-            @cond.pop
-            @cmdarg.pop
-          end
+          @cond.lexpop
+          @cmdarg.lexpop
         else
           emit(:tSTRING_DEND, '}'.freeze, p - 1, p)
         end
@@ -2220,7 +2215,13 @@ class Parser::Lexer
       # METHOD CALLS
       #
 
-      '.' | '&.' | '::'
+      '.:' w_space+
+      => { emit(:tDOT, '.', @ts, @ts + 1)
+           emit(:tCOLON, ':', @ts + 1, @ts + 2)
+           p = p - tok.length + 2
+           fnext expr_dot; fbreak; };
+
+      '.:' | '.' | '&.' | '::'
       => { emit_table(PUNCTUATION)
            fnext expr_dot; fbreak; };
 
