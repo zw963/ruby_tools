@@ -10,7 +10,7 @@
 
 module RbConfig
   RUBY_VERSION.start_with?("2.6.") or
-    raise "ruby lib version (2.6.0) doesn't match executable version (#{RUBY_VERSION})"
+    raise "ruby lib version (2.6.2) doesn't match executable version (#{RUBY_VERSION})"
 
   # Ruby installed directory.
   TOPDIR = File.dirname(__FILE__).chomp!("/lib/ruby/2.6.0/x86_64-linux")
@@ -21,8 +21,8 @@ module RbConfig
   CONFIG["DESTDIR"] = DESTDIR
   CONFIG["MAJOR"] = "2"
   CONFIG["MINOR"] = "6"
-  CONFIG["TEENY"] = "0"
-  CONFIG["PATCHLEVEL"] = "0"
+  CONFIG["TEENY"] = "2"
+  CONFIG["PATCHLEVEL"] = "47"
   CONFIG["INSTALL"] = '/usr/bin/install -c'
   CONFIG["EXEEXT"] = ""
   CONFIG["prefix"] = (TOPDIR || DESTDIR + "/tmp/ruby")
@@ -200,7 +200,7 @@ module RbConfig
   CONFIG["build_cpu"] = "x86_64"
   CONFIG["build"] = "x86_64-pc-linux-gnu"
   CONFIG["RUBY_API_VERSION"] = "$(MAJOR).$(MINOR)"
-  CONFIG["RUBY_PROGRAM_VERSION"] = "2.6.0"
+  CONFIG["RUBY_PROGRAM_VERSION"] = "2.6.2"
   CONFIG["HAVE_GIT"] = "no"
   CONFIG["GIT"] = "git"
   CONFIG["cxxflags"] = "$(optflags) $(debugflags) $(warnflags)"
@@ -242,8 +242,8 @@ module RbConfig
   CONFIG["PACKAGE_NAME"] = ""
   CONFIG["PATH_SEPARATOR"] = ":"
   CONFIG["SHELL"] = "/bin/sh"
-  CONFIG["UNICODE_VERSION"] = "11.0.0"
-  CONFIG["UNICODE_EMOJI_VERSION"] = "11.0"
+  CONFIG["UNICODE_VERSION"] = "12.0.0"
+  CONFIG["UNICODE_EMOJI_VERSION"] = "12.0"
   CONFIG["archdir"] = "$(rubyarchdir)"
   CONFIG["topdir"] = File.dirname(__FILE__)
   # Almost same with CONFIG. MAKEFILE_CONFIG has other variable
