@@ -57,8 +57,8 @@ module RuboCop
         include SurroundingSpace
         include ConfigurableEnforcedStyle
 
-        MSG = '%<command>s space inside reference brackets.'.freeze
-        EMPTY_MSG = '%<command>s space inside empty reference brackets.'.freeze
+        MSG = '%<command>s space inside reference brackets.'
+        EMPTY_MSG = '%<command>s space inside empty reference brackets.'
 
         BRACKET_METHODS = %i[[] []=].freeze
 
@@ -108,8 +108,7 @@ module RuboCop
         end
 
         def bracket_method?(node)
-          _, method, = *node
-          BRACKET_METHODS.include?(method)
+          BRACKET_METHODS.include?(node.method_name)
         end
 
         def left_ref_bracket(node, tokens)

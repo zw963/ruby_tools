@@ -25,11 +25,11 @@ module RuboCop
       class Alias < Cop
         include ConfigurableEnforcedStyle
 
-        MSG_ALIAS = 'Use `alias_method` instead of `alias`.'.freeze
+        MSG_ALIAS = 'Use `alias_method` instead of `alias`.'
         MSG_ALIAS_METHOD = 'Use `alias` instead of `alias_method` ' \
-                           '%<current>s.'.freeze
+                           '%<current>s.'
         MSG_SYMBOL_ARGS  = 'Use `alias %<prefer>s` instead of ' \
-                           '`alias %<current>s`.'.freeze
+                           '`alias %<current>s`.'
 
         def on_send(node)
           return unless node.command?(:alias_method)
@@ -114,27 +114,33 @@ module RuboCop
         def correct_alias_method_to_alias(send_node)
           lambda do |corrector|
             new, old = *send_node.arguments
-            replacement = "alias #{new.children.first} #{old.children.first}"
+            replacement = "alias #{identifier(new)} #{identifier(old)}"
             corrector.replace(send_node.source_range, replacement)
           end
         end
 
         def correct_alias_to_alias_method(node)
           lambda do |corrector|
-            new, old = *node
-            replacement = "alias_method :#{new.children.first}, " \
-                          ":#{old.children.first}"
+            replacement =
+              'alias_method ' \
+              ":#{identifier(node.new_identifier)}, " \
+              ":#{identifier(node.old_identifier)}"
             corrector.replace(node.source_range, replacement)
           end
         end
 
         def correct_alias_with_symbol_args(node)
           lambda do |corrector|
-            new, old = *node
-            corrector.replace(new.source_range, new.children.first.to_s)
-            corrector.replace(old.source_range, old.children.first.to_s)
+            corrector.replace(node.new_identifier.source_range,
+                              node.new_identifier.source[1..-1])
+            corrector.replace(node.old_identifier.source_range,
+                              node.old_identifier.source[1..-1])
           end
         end
+
+        def_node_matcher :identifier, <<-PATTERN
+          (sym $_)
+        PATTERN
       end
     end
   end

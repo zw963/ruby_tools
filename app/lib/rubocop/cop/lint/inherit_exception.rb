@@ -13,22 +13,30 @@ module RuboCop
       #
       #   class C < Exception; end
       #
+      #   C = Class.new(Exception)
+      #
       #   # good
       #
       #   class C < RuntimeError; end
+      #
+      #   C = Class.new(RuntimeError)
       #
       # @example EnforcedStyle: standard_error
       #   # bad
       #
       #   class C < Exception; end
       #
+      #   C = Class.new(Exception)
+      #
       #   # good
       #
       #   class C < StandardError; end
+      #
+      #   C = Class.new(StandardError)
       class InheritException < Cop
         include ConfigurableEnforcedStyle
 
-        MSG = 'Inherit from `%<prefer>s` instead of `%<current>s`.'.freeze
+        MSG = 'Inherit from `%<prefer>s` instead of `%<current>s`.'
         PREFERRED_BASE_CLASS = {
           runtime_error: 'RuntimeError',
           standard_error: 'StandardError'
@@ -47,12 +55,24 @@ module RuboCop
           SystemExit
         ].freeze
 
+        def_node_matcher :class_new_call?, <<-PATTERN
+          (send
+            (const {cbase nil?} :Class) :new
+            $(const {cbase nil?} _))
+        PATTERN
+
         def on_class(node)
-          _class, base_class, _body = *node
+          return unless node.parent_class &&
+                        illegal_class_name?(node.parent_class)
 
-          return unless base_class && illegal_class_name?(base_class)
+          add_offense(node.parent_class)
+        end
 
-          add_offense(base_class)
+        def on_send(node)
+          constant = class_new_call?(node)
+          return unless constant && illegal_class_name?(constant)
+
+          add_offense(constant)
         end
 
         def autocorrect(node)

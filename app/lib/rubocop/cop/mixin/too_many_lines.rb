@@ -7,7 +7,7 @@ module RuboCop
       include ConfigurableMax
       include CodeLength
 
-      MSG = '%<label>s has too many lines. [%<length>d/%<max>d]'.freeze
+      MSG = '%<label>s has too many lines. [%<length>d/%<max>d]'
 
       private
 
@@ -17,22 +17,18 @@ module RuboCop
 
       def code_length(node)
         body = extract_body(node)
-        lines = body && body.source.lines || []
+        lines = body&.source&.lines || []
 
         lines.count { |line| !irrelevant_line(line) }
       end
 
       def extract_body(node)
         case node.type
-        when :block, :def
-          _receiver_or_method, _args, body = *node
-        when :defs
-          _self, _method, _args, body = *node
+        when :block, :def, :defs
+          node.body
         else
-          body = node
+          node
         end
-
-        body
       end
     end
   end

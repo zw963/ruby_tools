@@ -14,10 +14,11 @@ module RuboCop
   # during a run of the rubocop program, if files in several
   # directories are inspected.
   class ConfigLoader
-    DOTFILE = '.rubocop.yml'.freeze
+    DOTFILE = '.rubocop.yml'
+    XDG_CONFIG = 'config.yml'
     RUBOCOP_HOME = File.realpath(File.join(File.dirname(__FILE__), '..', '..'))
     DEFAULT_FILE = File.join(RUBOCOP_HOME, 'config', 'default.yml')
-    AUTO_GENERATED_FILE = '.rubocop_todo.yml'.freeze
+    AUTO_GENERATED_FILE = '.rubocop_todo.yml'
 
     class << self
       include FileFinder
@@ -75,7 +76,10 @@ module RuboCop
       # user's home directory is checked. If there's no .rubocop.yml
       # there either, the path to the default file is returned.
       def configuration_file_for(target_dir)
-        find_file_upwards(DOTFILE, target_dir, use_home: true) || DEFAULT_FILE
+        find_project_dotfile(target_dir) ||
+          find_user_dotfile ||
+          find_user_xdg_config ||
+          DEFAULT_FILE
       end
 
       def configuration_from_file(config_file)
@@ -91,7 +95,10 @@ module RuboCop
       end
 
       def add_excludes_from_files(config, config_file)
-        found_files = find_files_upwards(DOTFILE, config_file, use_home: true)
+        found_files =
+          find_files_upwards(DOTFILE, config_file) +
+          [find_user_dotfile, find_user_xdg_config].compact
+
         return if found_files.empty?
         return if PathUtil.relative_path(found_files.last) ==
                   PathUtil.relative_path(config_file)
@@ -139,6 +146,31 @@ module RuboCop
 
       private
 
+      def find_project_dotfile(target_dir)
+        find_file_upwards(DOTFILE, target_dir)
+      end
+
+      def find_user_dotfile
+        return unless ENV.key?('HOME')
+
+        file = File.join(Dir.home, DOTFILE)
+        return file if File.exist?(file)
+      end
+
+      def find_user_xdg_config
+        xdg_config_home = expand_path(ENV.fetch('XDG_CONFIG_HOME', '~/.config'))
+        xdg_config = File.join(xdg_config_home, 'rubocop', XDG_CONFIG)
+        return xdg_config if File.exist?(xdg_config)
+      end
+
+      def expand_path(path)
+        File.expand_path(path)
+      rescue ArgumentError
+        # Could happen because HOME or ID could not be determined. Fall back on
+        # using the path literally in that case.
+        path
+      end
+
       def existing_configuration(config_file)
         IO.read(config_file, encoding: Encoding::UTF_8)
           .sub(%r{^inherit_from: *[.\/\w]+}, '')
@@ -174,10 +206,16 @@ module RuboCop
         smart_path = PathUtil.smart_path(absolute_path)
         YAMLDuplicationChecker.check(yaml_code, absolute_path) do |key1, key2|
           value = key1.value
-          line1 = key1.start_line + 1
-          line2 = key2.start_line + 1
-          message = "#{smart_path}:#{line1}: " \
-                    "`#{value}` is concealed by line #{line2}"
+          # .start_line is only available since ruby 2.5 / psych 3.0
+          message = if key1.respond_to? :start_line
+                      line1 = key1.start_line + 1
+                      line2 = key2.start_line + 1
+                      "#{smart_path}:#{line1}: " \
+                      "`#{value}` is concealed by line #{line2}"
+                    else
+                      "#{smart_path}: " \
+                        "`#{value}` is concealed by duplicate"
+                    end
           warn Rainbow(message).yellow
         end
       end
@@ -196,7 +234,8 @@ module RuboCop
         if defined?(SafeYAML) && SafeYAML.respond_to?(:load)
           SafeYAML.load(yaml_code, filename,
                         whitelisted_tags: %w[!ruby/regexp])
-        else
+        # Ruby 2.6+
+        elsif Gem::Version.new(Psych::VERSION) >= Gem::Version.new('3.1.0')
           YAML.safe_load(
             yaml_code,
             permitted_classes: [Regexp, Symbol],
@@ -204,6 +243,8 @@ module RuboCop
             aliases: false,
             filename: filename
           )
+        else
+          YAML.safe_load(yaml_code, [Regexp, Symbol], [], false, filename)
         end
       end
     end

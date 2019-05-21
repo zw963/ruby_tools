@@ -80,14 +80,14 @@ module RuboCop
         # Constants are included in this list because it is unlikely that
         # someone will store `nil` as a constant and then use it for comparison
         TYPES_IMPLEMENTING_MATCH = %i[const regexp str sym].freeze
-        MSG =
-          'Use `match?` instead of `%<current>s` when `MatchData` ' \
-          'is not used.'.freeze
+        MSG = 'Use `match?` instead of `%<current>s` when `MatchData` ' \
+          'is not used.'
 
         def_node_matcher :match_method?, <<-PATTERN
           {
-            (send _recv :match _)
-            (send _recv :match _ (int ...))
+            (send _recv :match _ <int ...>)
+            (send _recv :match {regexp str sym})
+            (send {regexp str sym} :match _)
           }
         PATTERN
 
@@ -106,7 +106,7 @@ module RuboCop
           regexp.to_regexp.named_captures.empty?
         end
 
-        MATCH_NODE_PATTERN = <<-PATTERN.freeze
+        MATCH_NODE_PATTERN = <<-PATTERN
           {
             #match_method?
             #match_operator?

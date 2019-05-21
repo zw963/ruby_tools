@@ -2,7 +2,7 @@
 
 module RuboCop
   module Cop
-    module Performance
+    module Style
       # This cop identifies places where `sort_by { ... }` can be replaced by
       # `sort`.
       #
@@ -18,7 +18,7 @@ module RuboCop
       class RedundantSortBy < Cop
         include RangeHelp
 
-        MSG = 'Use `sort` instead of `sort_by { |%<var>s| %<var>s }`.'.freeze
+        MSG = 'Use `sort` instead of `sort_by { |%<var>s| %<var>s }`.'
 
         def_node_matcher :redundant_sort_by, <<-PATTERN
           (block $(send _ :sort_by) (args (arg $_x)) (lvar _x))
@@ -35,7 +35,7 @@ module RuboCop
         end
 
         def autocorrect(node)
-          send, = *node
+          send = node.send_node
           ->(corrector) { corrector.replace(sort_by_range(send, node), 'sort') }
         end
 

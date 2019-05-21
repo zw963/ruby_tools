@@ -66,15 +66,15 @@ module RuboCop
       # @see https://api.rubyonrails.org/classes/ActiveRecord/ConnectionAdapters/SchemaStatements.html#method-i-change_table
       # @see https://api.rubyonrails.org/classes/ActiveRecord/ConnectionAdapters/Table.html
       class BulkChangeTable < Cop
-        MSG_FOR_CHANGE_TABLE = <<-MSG.strip_indent.chomp
+        MSG_FOR_CHANGE_TABLE = <<~MSG.chomp
           You can combine alter queries using `bulk: true` options.
         MSG
-        MSG_FOR_ALTER_METHODS = <<-MSG.strip_indent.chomp
+        MSG_FOR_ALTER_METHODS = <<~MSG.chomp
           You can use `change_table :%<table>s, bulk: true` to combine alter queries.
         MSG
 
-        MYSQL = 'mysql'.freeze
-        POSTGRESQL = 'postgresql'.freeze
+        MYSQL = 'mysql'
+        POSTGRESQL = 'postgresql'
 
         MIGRATION_METHODS = %i[change up down].freeze
 

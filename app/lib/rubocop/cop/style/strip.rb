@@ -2,7 +2,7 @@
 
 module RuboCop
   module Cop
-    module Performance
+    module Style
       # This cop identifies places where `lstrip.rstrip` can be replaced by
       # `strip`.
       #
@@ -13,10 +13,10 @@ module RuboCop
       #
       #   # good
       #   'abc'.strip
-      class LstripRstrip < Cop
+      class Strip < Cop
         include RangeHelp
 
-        MSG = 'Use `strip` instead of `%<methods>s`.'.freeze
+        MSG = 'Use `strip` instead of `%<methods>s`.'
 
         def_node_matcher :lstrip_rstrip, <<-PATTERN
           {(send $(send _ $:rstrip) $:lstrip)

@@ -18,8 +18,9 @@ module RuboCop
       #   "result is 10"
       class LiteralInInterpolation < Cop
         include RangeHelp
+        include PercentLiteral
 
-        MSG = 'Literal interpolation detected.'.freeze
+        MSG = 'Literal interpolation detected.'
         COMPOSITE = %i[array hash pair irange erange].freeze
 
         def on_dstr(node)
@@ -55,11 +56,21 @@ module RuboCop
           when :float
             node.children.last.to_f.to_s
           when :str
-            node.children.last
+            autocorrected_value_for_string(node)
           when :sym
             autocorrected_value_for_symbol(node)
+          when :array
+            autocorrected_value_for_array(node)
           else
             node.source.gsub('"', '\"')
+          end
+        end
+
+        def autocorrected_value_for_string(node)
+          if node.source.start_with?("'", '%q')
+            node.children.last.inspect[1..-2]
+          else
+            node.children.last
           end
         end
 
@@ -68,6 +79,12 @@ module RuboCop
             node.loc.end ? node.loc.end.begin_pos : node.loc.expression.end_pos
 
           range_between(node.loc.begin.end_pos, end_pos).source
+        end
+
+        def autocorrected_value_for_array(node)
+          return node.source.gsub('"', '\"') unless node.percent_literal?
+
+          contents_range(node).source.split(' ').to_s.gsub('"', '\"')
         end
 
         # Does node print its own source when converted to a string?

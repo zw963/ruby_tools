@@ -23,7 +23,7 @@ module RuboCop
         include RangeHelp
 
         MSG = 'Do not use `unless` with `else`. Rewrite these with the ' \
-              'positive case first.'.freeze
+              'positive case first.'
 
         def on_if(node)
           return unless node.unless? && node.else?
@@ -32,12 +32,11 @@ module RuboCop
         end
 
         def autocorrect(node)
-          condition, = *node
-          body_range = range_between_condition_and_else(node, condition)
+          body_range = range_between_condition_and_else(node, node.condition)
           else_range = range_between_else_and_end(node)
 
           lambda do |corrector|
-            corrector.replace(node.loc.keyword, 'if'.freeze)
+            corrector.replace(node.loc.keyword, 'if')
             corrector.replace(body_range, else_range.source)
             corrector.replace(else_range, body_range.source)
           end

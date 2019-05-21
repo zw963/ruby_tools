@@ -73,7 +73,7 @@ module RuboCop
         include NegativeConditional
 
         def on_if(node)
-          return if node.elsif? || node.ternary?
+          return if node.unless? || node.elsif? || node.ternary?
           return if correct_style?(node)
 
           check_negative_conditional(node)

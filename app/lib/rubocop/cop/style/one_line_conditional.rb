@@ -26,7 +26,7 @@ module RuboCop
         include OnNormalIfUnless
 
         MSG = 'Favor the ternary operator (`?:`) ' \
-              'over `%<keyword>s/then/else/end` constructs.'.freeze
+              'over `%<keyword>s/then/else/end` constructs.'
 
         def on_normal_if_unless(node)
           return unless node.single_line? && node.else_branch
@@ -61,9 +61,11 @@ module RuboCop
         end
 
         def to_ternary(node)
-          cond, body, else_clause = *node
-          "#{expr_replacement(cond)} ? #{expr_replacement(body)} : " \
-            "#{expr_replacement(else_clause)}"
+          condition, if_branch, else_branch = *node
+
+          "#{expr_replacement(condition)} ? " \
+            "#{expr_replacement(if_branch)} : " \
+            "#{expr_replacement(else_branch)}"
         end
 
         def expr_replacement(node)

@@ -50,7 +50,7 @@ module RuboCop
         include RangeHelp
 
         MSG = 'Use %<configured_indentation_width>d (not %<indentation>d) ' \
-              'spaces for%<name>s indentation.'.freeze
+              'spaces for%<name>s indentation.'
 
         SPECIAL_MODIFIERS = %w[private protected].freeze
 
@@ -90,27 +90,15 @@ module RuboCop
           check_members(end_loc, [node.body])
         end
 
-        def on_module(node)
-          _module_name, *members = *node
-          check_members(node.loc.keyword, members)
-        end
-
         def on_class(node)
-          _class_name, _base_class, *members = *node
-          check_members(node.loc.keyword, members)
+          check_members(node.loc.keyword, [node.body])
         end
-
-        def on_sclass(node)
-          _class_name, *members = *node
-
-          check_members(node.loc.keyword, members)
-        end
+        alias on_sclass on_class
+        alias on_module on_class
 
         def on_send(node)
           super
           return unless node.adjacent_def_modifier?
-
-          *_, body = *node.first_argument
 
           def_end_config = config.for_cop('Layout/DefEndAlignment')
           style = def_end_config['EnforcedStyleAlignWith'] || 'start_of_line'
@@ -120,7 +108,7 @@ module RuboCop
                    leftmost_modifier_of(node) || node
                  end
 
-          check_indentation(base.source_range, body)
+          check_indentation(base.source_range, node.first_argument.body)
           ignore_node(node.first_argument)
         end
         alias on_csend on_send
@@ -354,7 +342,7 @@ module RuboCop
         end
 
         def leftmost_modifier_of(node)
-          return node unless node.parent && node.parent.send_type?
+          return node unless node.parent&.send_type?
 
           leftmost_modifier_of(node.parent)
         end

@@ -26,41 +26,35 @@ module RuboCop
         include RangeHelp
 
         NESTED_MSG = 'Use nested module/class definitions instead of ' \
-                     'compact style.'.freeze
+                     'compact style.'
         COMPACT_MSG = 'Use compact module/class definition instead of ' \
-                      'nested style.'.freeze
+                      'nested style.'
 
         def on_class(node)
-          _name, superclass, body = *node
-          return if superclass && style != :nested
+          return if node.parent_class && style != :nested
 
-          check_style(node, body)
+          check_style(node, node.body)
         end
 
         def on_module(node)
-          _name, body = *node
-          check_style(node, body)
+          check_style(node, node.body)
         end
 
         def autocorrect(node)
           lambda do |corrector|
-            if node.class_type?
-              name, superclass, body = *node
-              return if superclass && style != :nested
-            else
-              name, body = *node
-            end
-            nest_or_compact(corrector, node, name, body)
+            return if node.class_type? && node.parent_class && style != :nested
+
+            nest_or_compact(corrector, node)
           end
         end
 
         private
 
-        def nest_or_compact(corrector, node, name, body)
+        def nest_or_compact(corrector, node)
           if style == :nested
             nest_definition(corrector, node)
           else
-            compact_definition(corrector, node, name, body)
+            compact_definition(corrector, node)
           end
         end
 
@@ -74,34 +68,38 @@ module RuboCop
         end
 
         def replace_keyword_with_module(corrector, node)
-          corrector.replace(node.loc.keyword, 'module'.freeze)
+          corrector.replace(node.loc.keyword, 'module')
         end
 
         def split_on_double_colon(corrector, node, padding)
           children_definition = node.children.first
           range = range_between(children_definition.loc.double_colon.begin_pos,
                                 children_definition.loc.double_colon.end_pos)
-          replacement = "\n#{padding}#{node.loc.keyword.source} ".freeze
+          replacement = "\n#{padding}#{node.loc.keyword.source} "
 
           corrector.replace(range, replacement)
         end
 
         def add_trailing_end(corrector, node, padding)
-          replacement = "#{padding}end\n#{leading_spaces(node)}end".freeze
+          replacement = "#{padding}end\n#{leading_spaces(node)}end"
           corrector.replace(node.loc.end, replacement)
         end
 
-        def compact_definition(corrector, node, name, body)
-          compact_node(corrector, node, name, body)
-          remove_end(corrector, body)
+        def compact_definition(corrector, node)
+          compact_node(corrector, node)
+          remove_end(corrector, node.body)
         end
 
-        def compact_node(corrector, node, name, body)
-          const_name = "#{name.const_name}::#{body.children.first.const_name}"
-          replacement = "#{body.type} #{const_name}"
+        def compact_node(corrector, node)
+          replacement = "#{node.body.type} #{compact_identifier_name(node)}"
           range = range_between(node.loc.keyword.begin_pos,
-                                body.loc.name.end_pos)
+                                node.body.loc.name.end_pos)
           corrector.replace(range, replacement)
+        end
+
+        def compact_identifier_name(node)
+          "#{node.identifier.const_name}::" \
+            "#{node.body.children.first.const_name}"
         end
 
         def remove_end(corrector, body)

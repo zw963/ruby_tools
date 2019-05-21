@@ -2,7 +2,7 @@
 
 module RuboCop
   module Cop
-    module Performance
+    module Style
       # This cop is used to identify usages of `shuffle.first`,
       # `shuffle.last`, and `shuffle[]` and change them to use
       # `sample` instead.
@@ -28,7 +28,7 @@ module RuboCop
       #   [1, 2, 3].shuffle[foo, bar]
       #   [1, 2, 3].shuffle(random: Random.new)
       class Sample < Cop
-        MSG = 'Use `%<correct>s` instead of `%<incorrect>s`.'.freeze
+        MSG = 'Use `%<correct>s` instead of `%<incorrect>s`.'
 
         def_node_matcher :sample_candidate?, <<-PATTERN
           (send $(send _ :shuffle $...) ${:first :last :[] :at :slice} $...)
@@ -77,10 +77,9 @@ module RuboCop
         end
 
         def sample_size_for_one_arg(arg)
-          case arg.type
-          when :erange, :irange
+          if arg.range_type?
             range_size(arg)
-          when :int
+          elsif arg.int_type?
             [0, -1].include?(arg.to_a.first) ? nil : :unknown
           else
             :unknown

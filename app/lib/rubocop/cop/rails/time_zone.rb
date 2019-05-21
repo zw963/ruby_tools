@@ -6,7 +6,7 @@ module RuboCop
       # This cop checks for the use of Time methods without zone.
       #
       # Built on top of Ruby on Rails style guide (https://github.com/rubocop-hq/rails-style-guide#time)
-      # and the article http://danilenko.org/2012/7/6/rails_timezones/ .
+      # and the article http://danilenko.org/2012/7/6/rails_timezones/
       #
       # Two styles are supported for this cop. When EnforcedStyle is 'strict'
       # then only use of Time.zone is allowed.
@@ -47,52 +47,69 @@ module RuboCop
         include ConfigurableEnforcedStyle
 
         MSG = 'Do not use `%<current>s` without zone. Use `%<prefer>s` ' \
-              'instead.'.freeze
+              'instead.'
 
         MSG_ACCEPTABLE = 'Do not use `%<current>s` without zone. ' \
-                         'Use one of %<prefer>s instead.'.freeze
+                         'Use one of %<prefer>s instead.'
 
         MSG_LOCALTIME = 'Do not use `Time.localtime` without ' \
-                        'offset or zone.'.freeze
+                        'offset or zone.'
 
-        MSG_CURRENT = 'Do not use `%<current>s`. Use `Time.zone.now` ' \
-                      'instead.'.freeze
-
-        TIMECLASS = %i[Time DateTime].freeze
+        TIMECLASSES = %i[Time DateTime].freeze
 
         GOOD_METHODS = %i[zone zone_default find_zone find_zone!].freeze
 
-        DANGEROUS_METHODS = %i[now local new
-                               parse at current].freeze
+        DANGEROUS_METHODS = %i[now local new parse at current].freeze
 
-        ACCEPTED_METHODS = %i[in_time_zone utc getlocal
-                              xmlschema iso8601 jisx0301 rfc3339
-                              httpdate to_i to_f].freeze
+        ACCEPTED_METHODS = %i[in_time_zone utc getlocal xmlschema iso8601
+                              jisx0301 rfc3339 httpdate to_i to_f].freeze
 
         def on_const(node)
           mod, klass = *node
-          # we should only check core class
-          # (`DateTime`/`Time` or `::Date`/`::DateTime`)
+          # we should only check core classes
+          # (`DateTime`, `Time`, `::DateTime` or `::Time`)
           return unless (mod.nil? || mod.cbase_type?) && method_send?(node)
 
-          check_time_node(klass, node.parent) if TIMECLASS.include?(klass)
+          check_time_node(klass, node.parent) if TIMECLASSES.include?(klass)
         end
 
         def autocorrect(node)
           lambda do |corrector|
-            if acceptable?
-              corrector.insert_after(node.source_range, '.in_time_zone')
-            else
-              corrector.insert_after(node.children[0].source_range, '.zone')
+            # add `.zone`: `Time.at` => `Time.zone.at`
+            corrector.insert_after(node.children[0].source_range, '.zone')
+            # replace `Time.zone.current` => `Time.zone.now`
+            if node.method_name == :current
+              corrector.replace(node.loc.selector, 'now')
             end
+            # prefer `Time` over `DateTime` class
+            if strict?
+              corrector.replace(node.children.first.source_range, 'Time')
+            end
+            remove_redundant_in_time_zone(corrector, node)
           end
         end
 
         private
 
+        # remove redundant `.in_time_zone` from `Time.zone.now.in_time_zone`
+        def remove_redundant_in_time_zone(corrector, node)
+          time_methods_called = extract_method_chain(node)
+          return unless time_methods_called.include?(:in_time_zone) ||
+                        time_methods_called.include?(:zone)
+
+          while node&.send_type?
+            if node.children.last == :in_time_zone
+              in_time_zone_with_dot =
+                node.loc.selector.adjust(begin_pos: -1)
+              corrector.remove(in_time_zone_with_dot)
+            end
+            node = node.parent
+          end
+        end
+
         def check_time_node(klass, node)
           chain = extract_method_chain(node)
-          return if danger_chain?(chain)
+          return if not_danger_chain?(chain)
 
           return check_localtime(node) if need_check_localtime?(chain)
 
@@ -105,17 +122,13 @@ module RuboCop
           add_offense(node, location: :selector, message: message)
         end
 
-        # rubocop:disable Metrics/MethodLength
         def build_message(klass, method_name, node)
-          if acceptable?
+          if flexible?
             format(
               MSG_ACCEPTABLE,
               current: "#{klass}.#{method_name}",
               prefer: acceptable_methods(klass, method_name, node).join(', ')
             )
-          elsif method_name == 'current'
-            format(MSG_CURRENT,
-                   current: "#{klass}.#{method_name}")
           else
             safe_method_name = safe_method(method_name, node)
             format(MSG,
@@ -123,20 +136,14 @@ module RuboCop
                    prefer: "Time.zone.#{safe_method_name}")
           end
         end
-        # rubocop:enable Metrics/MethodLength
 
         def extract_method_chain(node)
           chain = []
           while !node.nil? && node.send_type?
-            chain << extract_method(node) if method_from_time_class?(node)
+            chain << node.method_name if method_from_time_class?(node)
             node = node.parent
           end
           chain
-        end
-
-        def extract_method(node)
-          _receiver, method_name, *_args = *node
-          method_name
         end
 
         # Only add the method to the chain if the method being
@@ -146,35 +153,31 @@ module RuboCop
           if (receiver.is_a? RuboCop::AST::Node) && !receiver.cbase_type?
             method_from_time_class?(receiver)
           else
-            TIMECLASS.include? method_name
+            TIMECLASSES.include?(method_name)
           end
         end
 
         # checks that parent node of send_type
         # and receiver is the given node
         def method_send?(node)
-          return false unless node.parent && node.parent.send_type?
+          return false unless node.parent&.send_type?
 
-          receiver, _method_name, *_args = *node.parent
-
-          receiver == node
+          node.parent.receiver == node
         end
 
         def safe_method(method_name, node)
-          return method_name unless method_name == 'new'
-
-          if node.arguments?
-            'local'
+          if %w[new current].include?(method_name)
+            node.arguments? ? 'local' : 'now'
           else
-            'now'
+            method_name
           end
         end
 
         def check_localtime(node)
           selector_node = node
 
-          while node && node.send_type?
-            break if extract_method(node) == :localtime
+          while node&.send_type?
+            break if node.method_name == :localtime
 
             node = node.parent
           end
@@ -185,20 +188,24 @@ module RuboCop
                       location: :selector, message: MSG_LOCALTIME)
         end
 
-        def danger_chain?(chain)
+        def not_danger_chain?(chain)
           (chain & DANGEROUS_METHODS).empty? || !(chain & good_methods).empty?
         end
 
         def need_check_localtime?(chain)
-          acceptable? && chain.include?(:localtime)
+          flexible? && chain.include?(:localtime)
         end
 
-        def acceptable?
+        def flexible?
           style == :flexible
         end
 
+        def strict?
+          style == :strict
+        end
+
         def good_methods
-          if style == :strict
+          if strict?
             GOOD_METHODS
           else
             GOOD_METHODS + [:current] + ACCEPTED_METHODS

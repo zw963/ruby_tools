@@ -170,7 +170,7 @@ module RuboCop
           return unless rhs.source.start_with?('.')
 
           node = semantic_alignment_node(node)
-          return unless node && node.loc.selector
+          return unless node&.loc&.selector
 
           node.loc.dot.join(node.loc.selector)
         end
@@ -183,7 +183,7 @@ module RuboCop
           node = node.parent
           node = node.parent until node.loc.dot
 
-          node.receiver.source_range if node
+          node&.receiver&.source_range
         end
 
         def semantic_alignment_node(node)
@@ -201,10 +201,8 @@ module RuboCop
         end
 
         def operation_rhs(node)
-          receiver, = *node
-
-          operation_rhs = receiver.each_ancestor(:send).find do |rhs|
-            operator_rhs?(rhs, receiver)
+          operation_rhs = node.receiver.each_ancestor(:send).find do |rhs|
+            operator_rhs?(rhs, node.receiver)
           end
 
           return unless operation_rhs

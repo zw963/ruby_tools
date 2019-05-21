@@ -23,11 +23,10 @@ module RuboCop
         include ConfigurableEnforcedStyle
         include RangeHelp
 
-        ARROW = '->'.freeze
         MSG_REQUIRE_SPACE = 'Use a space between `->` and ' \
-                            '`(` in lambda literals.'.freeze
+                            '`(` in lambda literals.'
         MSG_REQUIRE_NO_SPACE = 'Do not use spaces between `->` and ' \
-                               '`(` in lambda literals.'.freeze
+                               '`(` in lambda literals.'
 
         def on_send(node)
           return unless arrow_lambda_with_args?(node)
@@ -59,27 +58,14 @@ module RuboCop
         private
 
         def arrow_lambda_with_args?(node)
-          lambda_node?(node) && arrow_form?(node) && args?(node)
-        end
-
-        def lambda_node?(node)
-          receiver, call = *node
-          receiver.nil? && call == :lambda
-        end
-
-        def arrow_form?(lambda_node)
-          lambda_node.loc.selector.source == ARROW
-        end
-
-        def args?(lambda_node)
-          _call, args, _body = *lambda_node.parent
-          !args.children.empty?
+          node.lambda_literal? && node.parent.arguments?
         end
 
         def space_after_arrow?(lambda_node)
           arrow = lambda_node.parent.children[0]
           parentheses = lambda_node.parent.children[1]
-          parentheses.source_range.begin_pos - arrow.source_range.end_pos > 0
+          (parentheses.source_range.begin_pos - arrow.source_range.end_pos)
+            .positive?
         end
 
         def range_of_offense(node)

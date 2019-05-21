@@ -12,31 +12,12 @@ module RuboCop
       #       this cop does not add any offenses for long here documents to
       #       avoid `Metrics/LineLength`'s offenses.
       #
-      # @example EnforcedStyle: auto_detection (default)
+      # @example EnforcedStyle: squiggly (default)
       #   # bad
       #   <<-RUBY
       #   something
       #   RUBY
       #
-      #   # good
-      #   # When using Ruby 2.3 or higher.
-      #   <<~RUBY
-      #     something
-      #   RUBY
-      #
-      #   # good
-      #   # When using Ruby 2.2 or lower and enabled Rails department.
-      #   # The following is possible to enable Rails department by
-      #   # adding for example:
-      #   #
-      #   # Rails:
-      #   #   Enabled: true
-      #   #
-      #   <<-RUBY.strip_heredoc
-      #     something
-      #   RUBY
-      #
-      # @example EnforcedStyle: squiggly
       #   # good
       #   # When EnforcedStyle is squiggly, bad code is auto-corrected to the
       #   # following code.
@@ -56,7 +37,7 @@ module RuboCop
       #   # good
       #   # When EnforcedStyle is powerpack, bad code is auto-corrected to
       #   # the following code.
-      #   <<-RUBY.strip_indent
+      #   <<~RUBY
       #     something
       #   RUBY
       #
@@ -75,11 +56,11 @@ module RuboCop
 
         RUBY23_TYPE_MSG = 'Use %<indentation_width>d spaces for indentation ' \
                           'in a heredoc by using `<<~` instead of ' \
-                          '`%<current_indent_type>s`.'.freeze
+                          '`%<current_indent_type>s`.'
         RUBY23_WIDTH_MSG = 'Use %<indentation_width>d spaces for '\
-                           'indentation in a heredoc.'.freeze
+                           'indentation in a heredoc.'
         LIBRARY_MSG = 'Use %<indentation_width>d spaces for indentation in a ' \
-                      'heredoc by using %<method>s.'.freeze
+                      'heredoc by using %<method>s.'
         STRIP_METHODS = {
           unindent: 'unindent',
           active_support: 'strip_heredoc',
@@ -116,17 +97,6 @@ module RuboCop
         end
 
         private
-
-        def style
-          style = super
-          return style unless style == :auto_detection
-
-          if target_ruby_version >= 2.3
-            :squiggly
-          elsif rails?
-            :active_support
-          end
-        end
 
         def message(node)
           case style
@@ -198,8 +168,6 @@ module RuboCop
         end
 
         def correct_by_squiggly(node)
-          return if target_ruby_version < 2.3
-
           lambda do |corrector|
             if heredoc_indent_type(node) == '~'
               adjust_squiggly(corrector, node)
@@ -229,16 +197,10 @@ module RuboCop
         end
 
         def check_style!
-          case style
-          when nil
-            raise Warning, "Auto-correction does not work for #{cop_name}. " \
-                           'Please configure EnforcedStyle.'
-          when :squiggly
-            if target_ruby_version < 2.3
-              raise Warning, '`squiggly` style is selectable only on Ruby ' \
-                             "2.3 or higher for #{cop_name}."
-            end
-          end
+          return if style
+
+          raise Warning, "Auto-correction does not work for #{cop_name}. " \
+                         'Please configure EnforcedStyle.'
         end
 
         def indented_body(node)

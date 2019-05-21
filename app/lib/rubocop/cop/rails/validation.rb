@@ -15,6 +15,7 @@ module RuboCop
       #   validates_length_of :foo
       #   validates_numericality_of :foo
       #   validates_presence_of :foo
+      #   validates_absence_of :foo
       #   validates_size_of :foo
       #   validates_uniqueness_of :foo
       #
@@ -27,12 +28,13 @@ module RuboCop
       #   validates :foo, length: true
       #   validates :foo, numericality: true
       #   validates :foo, presence: true
+      #   validates :foo, absence: true
       #   validates :foo, size: true
       #   validates :foo, uniqueness: true
       #
       class Validation < Cop
         MSG = 'Prefer the new style validations `%<prefer>s` over ' \
-              '`%<current>s`.'.freeze
+              '`%<current>s`.'
 
         TYPES = %w[
           acceptance
@@ -43,6 +45,7 @@ module RuboCop
           length
           numericality
           presence
+          absence
           size
           uniqueness
         ].freeze

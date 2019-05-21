@@ -140,7 +140,7 @@ module RuboCop
 
         VISIBILITY_SCOPES = %i[private protected public].freeze
         MSG = '`%<category>s` is supposed to appear before ' \
-              '`%<previous>s`.'.freeze
+              '`%<previous>s`.'
 
         def_node_matcher :visibility_block?, <<-PATTERN
           (send nil? { :private :protected :public })
@@ -223,7 +223,8 @@ module RuboCop
         end
 
         def class_elements(class_node)
-          *, class_def = class_node.children
+          class_def = class_node.body
+
           return [] unless class_def
 
           if class_def.def_type? || class_def.send_type?
@@ -240,8 +241,8 @@ module RuboCop
         end
 
         def node_visibility(node)
-          _, method_name, = *find_visibility_start(node)
-          method_name || :public
+          scope = find_visibility_start(node)
+          scope&.method_name || :public
         end
 
         def find_visibility_start(node)
@@ -272,9 +273,8 @@ module RuboCop
         end
 
         def humanize_node(node)
-          method_name, = *node
           if node.def_type?
-            return :initializer if method_name == :initialize
+            return :initializer if node.method?(:initialize)
 
             return "#{node_visibility(node)}_methods"
           end

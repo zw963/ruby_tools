@@ -18,7 +18,7 @@ module RuboCop
       #
       #   1.is_a?(Integer)
       class UnifiedInteger < Cop
-        MSG = 'Use `Integer` instead of `%<klass>s`.'.freeze
+        MSG = 'Use `Integer` instead of `%<klass>s`.'
 
         def_node_matcher :fixnum_or_bignum_const, <<-PATTERN
           (:const {nil? (:cbase)} ${:Fixnum :Bignum})
@@ -33,6 +33,8 @@ module RuboCop
         end
 
         def autocorrect(node)
+          return false if target_ruby_version <= 2.3
+
           lambda do |corrector|
             corrector.replace(node.loc.name, 'Integer')
           end

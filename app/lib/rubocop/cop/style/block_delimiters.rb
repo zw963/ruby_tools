@@ -95,9 +95,22 @@ module RuboCop
       #     word.flip.flop
       #   }.join("-")
       #
+      # @example EnforcedStyle: always_braces
+      #   # bad
+      #   words.each do |word|
+      #     word.flip.flop
+      #   end
+      #
+      #   # good
+      #   words.each { |word|
+      #     word.flip.flop
+      #   }
+      #
       class BlockDelimiters < Cop
         include ConfigurableEnforcedStyle
         include IgnoredMethods
+
+        ALWAYS_BRACES_MESSAGE = 'Prefer `{...}` over `do...end` for blocks.'
 
         def on_send(node)
           return unless node.arguments?
@@ -151,7 +164,7 @@ module RuboCop
 
         def braces_for_chaining_message(node)
           if node.multiline?
-            if return_value_chaining?(node)
+            if node.chained?
               'Prefer `{...}` over `do...end` for multi-line chained blocks.'
             else
               'Prefer `do...end` for multi-line blocks without chaining.'
@@ -166,6 +179,7 @@ module RuboCop
           when :line_count_based    then line_count_based_message(node)
           when :semantic            then semantic_message(node)
           when :braces_for_chaining then braces_for_chaining_message(node)
+          when :always_braces       then ALWAYS_BRACES_MESSAGE
           end
         end
 
@@ -229,6 +243,7 @@ module RuboCop
           when :line_count_based    then line_count_based_block_style?(node)
           when :semantic            then semantic_block_style?(node)
           when :braces_for_chaining then braces_for_chaining_style?(node)
+          when :always_braces       then braces_style?(node)
           end
         end
 
@@ -251,14 +266,14 @@ module RuboCop
           block_begin = node.loc.begin.source
 
           block_begin == if node.multiline?
-                           (return_value_chaining?(node) ? '{' : 'do')
+                           (node.chained? ? '{' : 'do')
                          else
                            '{'
                          end
         end
 
-        def return_value_chaining?(node)
-          node.parent && node.parent.send_type? && node.parent.dot?
+        def braces_style?(node)
+          node.loc.begin.source == '{'
         end
 
         def correction_would_break_code?(node)

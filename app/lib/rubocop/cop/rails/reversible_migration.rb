@@ -126,7 +126,7 @@ module RuboCop
       #
       # @see https://api.rubyonrails.org/classes/ActiveRecord/Migration/CommandRecorder.html
       class ReversibleMigration < Cop
-        MSG = '%<action>s is not reversible.'.freeze
+        MSG = '%<action>s is not reversible.'
         IRREVERSIBLE_CHANGE_TABLE_CALLS = %i[
           change change_default remove
         ].freeze
@@ -140,7 +140,7 @@ module RuboCop
         PATTERN
 
         def_node_matcher :change_column_default_call, <<-PATTERN
-          (send nil? :change_column_default _ _ $...)
+          (send nil? :change_column_default {[(sym _) (sym _)] (splat _)} $...)
         PATTERN
 
         def_node_matcher :remove_column_call, <<-PATTERN
@@ -195,7 +195,7 @@ module RuboCop
 
         def check_change_column_default_node(node)
           change_column_default_call(node) do |args|
-            unless all_hash_key?(args.first, :from, :to)
+            unless all_hash_key?(args.last, :from, :to)
               add_offense(
                 node,
                 message: format(
@@ -272,7 +272,7 @@ module RuboCop
         end
 
         def all_hash_key?(args, *keys)
-          return false unless args && args.hash_type?
+          return false unless args&.hash_type?
 
           hash_keys = args.keys.map do |key|
             key.children.first.to_sym

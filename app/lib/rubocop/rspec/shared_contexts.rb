@@ -7,6 +7,7 @@ RSpec.shared_context 'isolated environment', :isolated_environment do
   around do |example|
     Dir.mktmpdir do |tmpdir|
       original_home = ENV['HOME']
+      original_xdg_config_home = ENV['XDG_CONFIG_HOME']
 
       # Make sure to expand all symlinks in the path first. Otherwise we may
       # get mismatched pathnames when loading config files later on.
@@ -19,6 +20,7 @@ RSpec.shared_context 'isolated environment', :isolated_environment do
         virtual_home = File.expand_path(File.join(tmpdir, 'home'))
         Dir.mkdir(virtual_home)
         ENV['HOME'] = virtual_home
+        ENV.delete('XDG_CONFIG_HOME')
 
         working_dir = File.join(tmpdir, 'work')
         Dir.mkdir(working_dir)
@@ -28,6 +30,7 @@ RSpec.shared_context 'isolated environment', :isolated_environment do
         end
       ensure
         ENV['HOME'] = original_home
+        ENV['XDG_CONFIG_HOME'] = original_xdg_config_home
 
         RuboCop::FileFinder.root_level = nil
       end
@@ -57,10 +60,6 @@ RSpec.shared_context 'config', :config do
 
     RuboCop::Config.new(hash, "#{Dir.pwd}/.rubocop.yml")
   end
-end
-
-RSpec.shared_context 'ruby 2.2', :ruby22 do
-  let(:ruby_version) { 2.2 }
 end
 
 RSpec.shared_context 'ruby 2.3', :ruby23 do

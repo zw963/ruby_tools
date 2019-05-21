@@ -12,7 +12,7 @@ module RuboCop
     E_STDIN_NO_PATH = '-s/--stdin requires exactly one path, relative to the ' \
       'root of the project. RuboCop will use this path to determine which ' \
       'cops are enabled (via eg. Include/Exclude), and so that certain cops ' \
-      'like Naming/FileName can be checked.'.freeze
+      'like Naming/FileName can be checked.'
     EXITING_OPTIONS = %i[version verbose_version show_cops].freeze
     DEFAULT_MAXIMUM_EXCLUSION_ITEMS = 15
 
@@ -45,7 +45,7 @@ module RuboCop
 
     def args_from_file
       if File.exist?('.rubocop') && !File.directory?('.rubocop')
-        IO.readlines('.rubocop').map(&:strip)
+        File.read('.rubocop').shellsplit
       else
         []
       end
@@ -117,6 +117,8 @@ module RuboCop
       option(opts, '--no-auto-gen-timestamp') do
         @options[:no_auto_gen_timestamp] = true
       end
+
+      option(opts, '--init')
     end
 
     def add_formatting_options(opts)
@@ -435,7 +437,8 @@ module RuboCop
       parallel: ['Use available CPUs to execute inspection in',
                  'parallel.'],
       stdin: ['Pipe source from STDIN, using FILE in offense',
-              'reports. This is useful for editor integration.']
+              'reports. This is useful for editor integration.'],
+      init: 'Generate a .rubocop.yml file in the current directory.'
     }.freeze
   end
 end

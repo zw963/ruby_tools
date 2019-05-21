@@ -4,16 +4,21 @@ module RuboCop
   module Cop
     # Common functionality shared by Uncommunicative cops
     module UncommunicativeName
-      CASE_MSG = 'Only use lowercase characters for %<name_type>s.'.freeze
-      NUM_MSG = 'Do not end %<name_type>s with a number.'.freeze
+      CASE_MSG = 'Only use lowercase characters for %<name_type>s.'
+      NUM_MSG = 'Do not end %<name_type>s with a number.'
       LENGTH_MSG = '%<name_type>s must be at least %<min>s ' \
-                   'characters long.'.freeze
+                   'characters long.'
       FORBIDDEN_MSG = 'Do not use %<name>s as a name for a ' \
-                      '%<name_type>s.'.freeze
+                      '%<name_type>s.'
 
       def check(node, args)
         args.each do |arg|
-          name = arg.children.first.to_s
+          # Argument names might be "_" or prefixed with "_" to indicate they
+          # are unused. Trim away this prefix and only analyse the basename.
+          full_name = arg.children.first.to_s
+          next if full_name == '_'
+
+          name = full_name.gsub(/\A([_]+)/, '')
           next if (arg.restarg_type? || arg.kwrestarg_type?) && name.empty?
           next if allowed_names.include?(name)
 

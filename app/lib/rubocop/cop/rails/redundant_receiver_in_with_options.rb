@@ -60,7 +60,7 @@ module RuboCop
 
         minimum_target_rails_version 4.2
 
-        MSG = 'Redundant receiver in `with_options`.'.freeze
+        MSG = 'Redundant receiver in `with_options`.'
 
         def_node_matcher :with_options?, <<-PATTERN
           (block
@@ -81,6 +81,7 @@ module RuboCop
 
         def on_block(node)
           with_options?(node) do |arg, body|
+            return if body.nil?
             return unless all_block_nodes_in(body).count.zero?
 
             send_nodes = all_send_nodes_in(body)

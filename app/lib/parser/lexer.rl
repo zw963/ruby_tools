@@ -95,13 +95,14 @@ class Parser::Lexer
   attr_accessor :static_env
   attr_accessor :force_utf32
 
-  attr_accessor :cond, :cmdarg, :in_kwarg
+  attr_accessor :cond, :cmdarg, :in_kwarg, :context
 
   attr_accessor :tokens, :comments
 
   def initialize(version)
     @version    = version
     @static_env = nil
+    @context    = nil
 
     @tokens     = nil
     @comments   = nil
@@ -1907,6 +1908,31 @@ class Parser::Lexer
         end
 
         fbreak;
+      };
+
+      #
+      # RUBY 2.7 BEGINLESS RANGE
+
+      '..'
+      => {
+        if @version >= 27
+          emit(:tBDOT2)
+        else
+          emit(:tDOT2)
+        end
+
+        fnext expr_beg; fbreak;
+      };
+
+      '...'
+      => {
+        if @version >= 27
+          emit(:tBDOT3)
+        else
+          emit(:tDOT3)
+        end
+
+        fnext expr_beg; fbreak;
       };
 
       #

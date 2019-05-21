@@ -16,8 +16,6 @@ module RuboCop
       class RedundantParentheses < Cop
         include Parentheses
 
-        ALLOWED_LITERALS = %i[irange erange].freeze
-
         def_node_matcher :square_brackets?,
                          '(send {(send _recv _msg) str array hash} :[] ...)'
         def_node_matcher :range_end?, '^^{irange erange}'
@@ -28,6 +26,8 @@ module RuboCop
 
         def on_begin(node)
           return if !parentheses?(node) || parens_allowed?(node)
+          return if node.parent && (node.parent.while_post_type? ||
+                                    node.parent.until_post_type?)
 
           check(node)
         end
@@ -126,7 +126,7 @@ module RuboCop
         end
 
         def keyword_ancestor?(node)
-          node.parent && node.parent.keyword?
+          node.parent&.keyword?
         end
 
         def allowed_array_or_hash_element?(node)
@@ -140,11 +140,11 @@ module RuboCop
         end
 
         def hash_element?(node)
-          node.parent && node.parent.pair_type?
+          node.parent&.pair_type?
         end
 
         def array_element?(node)
-          node.parent && node.parent.array_type?
+          node.parent&.array_type?
         end
 
         def only_closing_paren_before_comma?(node)
@@ -156,20 +156,20 @@ module RuboCop
 
         def disallowed_literal?(begin_node, node)
           node.literal? &&
-            !ALLOWED_LITERALS.include?(node.type) &&
+            !node.range_type? &&
             !raised_to_power_negative_numeric?(begin_node, node)
         end
 
         def raised_to_power_negative_numeric?(begin_node, node)
           return false unless node.numeric_type?
 
-          siblings = begin_node.parent && begin_node.parent.children
+          siblings = begin_node.parent&.children
           return false if siblings.nil?
 
           next_sibling = siblings[begin_node.sibling_index + 1]
           base_value = node.children.first
 
-          base_value < 0 && next_sibling == :**
+          base_value.negative? && next_sibling == :**
         end
 
         def keyword_with_redundant_parentheses?(node)
@@ -213,7 +213,7 @@ module RuboCop
 
         def call_chain_starts_with_int?(begin_node, send_node)
           recv = first_part_of_call_chain(send_node)
-          recv && recv.int_type? && (parent = begin_node.parent) &&
+          recv&.int_type? && (parent = begin_node.parent) &&
             parent.send_type? && (parent.method?(:-@) || parent.method?(:+@))
         end
       end

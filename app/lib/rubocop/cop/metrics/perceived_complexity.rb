@@ -30,7 +30,7 @@ module RuboCop
         include MethodComplexity
 
         MSG = 'Perceived complexity for %<method>s is too high. ' \
-              '[%<complexity>d/%<max>d]'.freeze
+              '[%<complexity>d/%<max>d]'
         COUNTED_NODES = %i[if case while until
                            for rescue and or].freeze
 
@@ -39,16 +39,15 @@ module RuboCop
         def complexity_score_for(node)
           case node.type
           when :case
-            expression, *whens, _else = *node
             # If cond is nil, that means each when has an expression that
             # evaluates to true or false. It's just an alternative to
             # if/elsif/elsif... so the when nodes count.
-            if expression.nil?
-              whens.length
+            if node.condition.nil?
+              node.when_branches.length
             else
               # Otherwise, the case node gets 0.8 complexity points and each
               # when gets 0.2.
-              (0.8 + 0.2 * whens.length).round
+              (0.8 + 0.2 * node.when_branches.length).round
             end
           when :if
             node.else? && !node.elsif? ? 2 : 1

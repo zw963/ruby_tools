@@ -27,23 +27,19 @@ module RuboCop
       class Documentation < Cop
         include DocumentationComment
 
-        MSG = 'Missing top-level %<type>s documentation comment.'.freeze
+        MSG = 'Missing top-level %<type>s documentation comment.'
 
         def_node_matcher :constant_definition?, '{class module casgn}'
         def_node_search :outer_module, '(const (const nil? _) _)'
 
         def on_class(node)
-          _, _, body = *node
+          return unless node.body
 
-          return unless body
-
-          check(node, body, :class)
+          check(node, node.body, :class)
         end
 
         def on_module(node)
-          _, body = *node
-
-          check(node, body, :module)
+          check(node, node.body, :module)
         end
 
         private
@@ -79,7 +75,7 @@ module RuboCop
         # Note: How end-of-line comments are associated with code changed in
         # parser-2.2.0.4.
         def nodoc_comment?(node, require_all = false)
-          return false unless node && node.children.first
+          return false unless node&.children&.first
 
           nodoc = nodoc(node)
 

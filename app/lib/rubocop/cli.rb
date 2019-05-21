@@ -7,13 +7,13 @@ module RuboCop
   class CLI
     include Formatter::TextUtil
 
-    PHASE_1 = 'Phase 1 of 2: run Metrics/LineLength cop'.freeze
-    PHASE_2 = 'Phase 2 of 2: run all cops'.freeze
+    PHASE_1 = 'Phase 1 of 2: run Metrics/LineLength cop'
+    PHASE_2 = 'Phase 2 of 2: run all cops'
 
     PHASE_1_OVERRIDDEN = '(skipped because the default Metrics/LineLength:Max' \
-                         ' is overridden)'.freeze
+                         ' is overridden)'
     PHASE_1_DISABLED   = '(skipped because Metrics/LineLength is ' \
-                         'disabled)'.freeze
+                         'disabled)'
 
     STATUS_SUCCESS     = 0
     STATUS_OFFENSES    = 1
@@ -41,10 +41,15 @@ module RuboCop
     # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
     def run(args = ARGV)
       @options, paths = Options.new.parse(args)
-      validate_options_vs_config
-      act_on_options
-      apply_default_formatter
-      execute_runners(paths)
+
+      if @options[:init]
+        init_dotfile
+      else
+        validate_options_vs_config
+        act_on_options
+        apply_default_formatter
+        execute_runners(paths)
+      end
     rescue ConfigNotFoundError, IncorrectCopNameError, OptionArgumentError => e
       warn e.message
       STATUS_ERROR
@@ -130,6 +135,37 @@ module RuboCop
         f.write(line_length_contents)
       end
       result
+    end
+
+    def init_dotfile
+      path = File.expand_path(ConfigLoader::DOTFILE)
+
+      if File.exist?(ConfigLoader::DOTFILE)
+        warn Rainbow("#{ConfigLoader::DOTFILE} already exists at #{path}").red
+
+        STATUS_ERROR
+      else
+        description = <<~DESC
+          # The behavior of RuboCop can be controlled via the .rubocop.yml
+          # configuration file. It makes it possible to enable/disable
+          # certain cops (checks) and to alter their behavior if they accept
+          # any parameters. The file can be placed either in your home
+          # directory or in some project directory.
+          #
+          # RuboCop will start looking for the configuration file in the directory
+          # where the inspected file is and continue its way up to the root directory.
+          #
+          # See https://github.com/rubocop-hq/rubocop/blob/master/manual/configuration.md
+        DESC
+
+        File.open(ConfigLoader::DOTFILE, 'w') do |f|
+          f.write(description)
+        end
+
+        puts "Writing new #{ConfigLoader::DOTFILE} to #{path}"
+
+        STATUS_SUCCESS
+      end
     end
 
     def reset_config_and_auto_gen_file
@@ -281,7 +317,7 @@ module RuboCop
 
       errors.each { |error| warn error }
 
-      warn <<-WARNING.strip_indent
+      warn <<~WARNING
         Errors are usually caused by RuboCop bugs.
         Please, report your problems to RuboCop's issue tracker.
         #{Gem.loaded_specs['rubocop'].metadata['bug_tracker_uri']}

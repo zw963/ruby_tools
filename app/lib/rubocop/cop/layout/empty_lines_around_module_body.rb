@@ -47,11 +47,10 @@ module RuboCop
       class EmptyLinesAroundModuleBody < Cop
         include EmptyLinesAroundBody
 
-        KIND = 'module'.freeze
+        KIND = 'module'
 
         def on_module(node)
-          _name, body = *node
-          check(node, body)
+          check(node, node.body)
         end
 
         def autocorrect(node)

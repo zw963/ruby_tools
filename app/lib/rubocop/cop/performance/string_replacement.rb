@@ -21,12 +21,12 @@ module RuboCop
       class StringReplacement < Cop
         include RangeHelp
 
-        MSG = 'Use `%<prefer>s` instead of `%<current>s`.'.freeze
+        MSG = 'Use `%<prefer>s` instead of `%<current>s`.'
         DETERMINISTIC_REGEX = /\A(?:#{LITERAL_REGEX})+\Z/.freeze
-        DELETE = 'delete'.freeze
-        TR = 'tr'.freeze
-        BANG = '!'.freeze
-        SINGLE_QUOTE = "'".freeze
+        DELETE = 'delete'
+        TR = 'tr'
+        BANG = '!'
+        SINGLE_QUOTE = "'"
 
         def_node_matcher :string_replacement?, <<-PATTERN
           (send _ {:gsub :gsub!}
@@ -86,7 +86,8 @@ module RuboCop
 
           unless first_param.str_type?
             return true if options
-            return true unless first_source =~ DETERMINISTIC_REGEX
+            return true unless first_source.is_a?(String) &&
+                               first_source =~ DETERMINISTIC_REGEX
 
             # This must be done after checking DETERMINISTIC_REGEX
             # Otherwise things like \s will trip us up

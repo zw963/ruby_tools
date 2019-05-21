@@ -58,9 +58,9 @@ module RuboCop
         include ConfigurableEnforcedStyle
         include RangeHelp
 
-        MSG_19 = 'Use the new Ruby 1.9 hash syntax.'.freeze
-        MSG_NO_MIXED_KEYS = "Don't mix styles in the same hash.".freeze
-        MSG_HASH_ROCKETS = 'Use hash rockets syntax.'.freeze
+        MSG_19 = 'Use the new Ruby 1.9 hash syntax.'
+        MSG_NO_MIXED_KEYS = "Don't mix styles in the same hash."
+        MSG_HASH_ROCKETS = 'Use hash rockets syntax.'
 
         def on_hash(node)
           pairs = node.pairs
@@ -132,7 +132,7 @@ module RuboCop
         end
 
         def word_symbol_pair?(pair)
-          return false unless pair.key.sym_type?
+          return false unless pair.key.sym_type? || pair.key.dsym_type?
 
           acceptable_19_syntax_symbol?(pair.key.source)
         end

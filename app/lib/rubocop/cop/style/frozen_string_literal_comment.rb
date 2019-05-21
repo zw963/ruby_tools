@@ -9,22 +9,7 @@ module RuboCop
       # after Ruby 3.0. The comment will be added below a shebang and encoding
       # comment. The frozen string literal comment is only valid in Ruby 2.3+.
       #
-      # @example EnforcedStyle: when_needed (default)
-      #   # The `when_needed` style will add the frozen string literal comment
-      #   # to files only when the `TargetRubyVersion` is set to 2.3+.
-      #   # bad
-      #   module Foo
-      #     # ...
-      #   end
-      #
-      #   # good
-      #   # frozen_string_literal: true
-      #
-      #   module Foo
-      #     # ...
-      #   end
-      #
-      # @example EnforcedStyle: always
+      # @example EnforcedStyle: always (default)
       #   # The `always` style will always add the frozen string literal comment
       #   # to a file, regardless of the Ruby version or if `freeze` or `<<` are
       #   # called on a string literal.
@@ -59,12 +44,11 @@ module RuboCop
         include FrozenStringLiteral
         include RangeHelp
 
-        MSG = 'Missing magic comment `# frozen_string_literal: true`.'.freeze
-        MSG_UNNECESSARY = 'Unnecessary frozen string literal comment.'.freeze
-        SHEBANG = '#!'.freeze
+        MSG = 'Missing magic comment `# frozen_string_literal: true`.'
+        MSG_UNNECESSARY = 'Unnecessary frozen string literal comment.'
+        SHEBANG = '#!'
 
         def investigate(processed_source)
-          return if style == :when_needed && target_ruby_version < 2.3
           return if processed_source.tokens.empty?
 
           if frozen_string_literal_comment_exists?
@@ -157,7 +141,7 @@ module RuboCop
           last_special_comment = last_special_comment(processed_source)
           following_line = processed_source.following_line(last_special_comment)
 
-          if following_line && following_line.empty?
+          if following_line&.empty?
             "\n#{FROZEN_STRING_LITERAL_ENABLED}"
           else
             "\n#{FROZEN_STRING_LITERAL_ENABLED}\n"

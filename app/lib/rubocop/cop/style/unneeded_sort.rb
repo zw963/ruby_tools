@@ -2,7 +2,7 @@
 
 module RuboCop
   module Cop
-    module Performance
+    module Style
       # This cop is used to identify instances of sorting and then
       # taking only the first or last element. The same behavior can
       # be accomplished without a relatively expensive sort by using
@@ -53,7 +53,7 @@ module RuboCop
         include RangeHelp
 
         MSG = 'Use `%<suggestion>s` instead of '\
-              '`%<sorter>s...%<accessor_source>s`.'.freeze
+              '`%<sorter>s...%<accessor_source>s`.'
 
         def_node_matcher :unneeded_sort?, <<-MATCHER
           {
@@ -127,7 +127,7 @@ module RuboCop
         end
 
         def base(accessor, arg)
-          if accessor == :first || (arg && arg.zero?)
+          if accessor == :first || (arg&.zero?)
             'min'
           elsif accessor == :last || arg == -1
             'max'

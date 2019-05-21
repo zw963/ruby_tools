@@ -8,21 +8,27 @@ module RuboCop
       # risk as the loaded page will have control over the previous page
       # and could change its location for phishing purposes.
       #
+      # The option `rel: 'noreferrer'` also blocks this behavior
+      # and removes the http-referrer header.
+      #
       # @example
       #   # bad
       #   link_to 'Click here', url, target: '_blank'
       #
       #   # good
       #   link_to 'Click here', url, target: '_blank', rel: 'noopener'
+      #
+      #   # good
+      #   link_to 'Click here', url, target: '_blank', rel: 'noreferrer'
       class LinkToBlank < Cop
-        MSG = 'Specify a `:rel` option containing noopener.'.freeze
+        MSG = 'Specify a `:rel` option containing noopener.'
 
         def_node_matcher :blank_target?, <<-PATTERN
           (pair {(sym :target) (str "target")} {(str "_blank") (sym :_blank)})
         PATTERN
 
         def_node_matcher :includes_noopener?, <<-PATTERN
-          (pair {(sym :rel) (str "rel")} (str #contains_noopener?))
+          (pair {(sym :rel) (str "rel")} ({str sym} #contains_noopener?))
         PATTERN
 
         def_node_matcher :rel_node?, <<-PATTERN
@@ -72,17 +78,19 @@ module RuboCop
         end
 
         def add_rel(send_node, offence_node, corrector)
-          quote_style = offence_node.children.last.source[0]
-          new_rel_exp = ", rel: #{quote_style}noopener#{quote_style}"
+          opening_quote = offence_node.children.last.source[0]
+          closing_quote = opening_quote == ':' ? '' : opening_quote
+          new_rel_exp = ", rel: #{opening_quote}noopener#{closing_quote}"
           range = send_node.arguments.last.source_range
 
           corrector.insert_after(range, new_rel_exp)
         end
 
-        def contains_noopener?(str)
-          return false unless str
+        def contains_noopener?(value)
+          return false unless value
 
-          str.split(' ').include?('noopener')
+          rel_array = value.to_s.split(' ')
+          rel_array.include?('noopener') || rel_array.include?('noreferrer')
         end
       end
     end

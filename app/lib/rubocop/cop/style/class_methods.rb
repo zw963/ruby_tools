@@ -21,17 +21,20 @@ module RuboCop
       #     end
       #   end
       class ClassMethods < Cop
-        MSG = 'Use `self.%<method>s` instead of `%<class>s.%<method>s`.'.freeze
+        MSG = 'Use `self.%<method>s` instead of `%<class>s.%<method>s`.'
 
         def on_class(node)
-          name, _superclass, body = *node
-          check(name, body)
-        end
+          return unless node.body
 
-        def on_module(node)
-          name, body = *node
-          check(name, body)
+          if node.body.defs_type?
+            check_defs(node.identifier, node.body)
+          elsif node.body.begin_type?
+            node.body.each_child_node(:defs) do |def_node|
+              check_defs(node.identifier, def_node)
+            end
+          end
         end
+        alias on_module on_class
 
         def autocorrect(node)
           ->(corrector) { corrector.replace(node.loc.name, 'self') }
@@ -39,28 +42,17 @@ module RuboCop
 
         private
 
-        def check(name, node)
-          return unless node
-
-          if node.defs_type?
-            check_defs(name, node)
-          elsif node.begin_type?
-            node.each_child_node(:defs) { |n| check_defs(name, n) }
-          end
-        end
-
         def check_defs(name, node)
-          definee, method_name, _args, _body = *node
           # check if the class/module name matches the definee for the defs node
-          return unless name == definee
+          return unless name == node.receiver
 
-          _, class_name = *definee
-          add_offense(definee, location: :name,
-                               message: message(class_name, method_name))
+          add_offense(node.receiver, location: :name)
         end
 
-        def message(class_name, method_name)
-          format(MSG, method: method_name, class: class_name)
+        def message(node)
+          _, class_name = *node
+
+          format(MSG, method: node.parent.method_name, class: class_name)
         end
       end
     end

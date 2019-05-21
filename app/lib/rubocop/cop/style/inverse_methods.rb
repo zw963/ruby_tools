@@ -28,14 +28,24 @@ module RuboCop
       #   foo == bar
       #   !!('foo' =~ /^\w+$/)
       #   !(foo.class < Numeric) # Checking class hierarchy is allowed
+      #   # Blocks with guard clauses are ignored:
+      #   foo.select do |f|
+      #     next if f.zero?
+      #     f != 1
+      #   end
       class InverseMethods < Cop
         include IgnoredNode
+        include RangeHelp
 
-        MSG = 'Use `%<inverse>s` instead of inverting `%<method>s`.'.freeze
+        MSG = 'Use `%<inverse>s` instead of inverting `%<method>s`.'
         CLASS_COMPARISON_METHODS = %i[<= >= < >].freeze
         EQUALITY_METHODS = %i[== != =~ !~ <= >= < >].freeze
         NEGATED_EQUALITY_METHODS = %i[!= !~].freeze
         CAMEL_CASE = /[A-Z]+[a-z]+/.freeze
+
+        def self.autocorrect_incompatible_with
+          [Style::Not]
+        end
 
         def_node_matcher :inverse_candidate?, <<-PATTERN
           {
@@ -71,6 +81,7 @@ module RuboCop
           inverse_block?(node) do |_method_call, method, block|
             return unless inverse_blocks.key?(method)
             return if negated?(node) && negated?(node.parent)
+            return if node.each_node(:next).any?
 
             # Inverse method offenses inside of the block of an inverse method
             # offense, such as `y.reject { |key, _value| !(key =~ /c\d/) }`,
@@ -117,6 +128,11 @@ module RuboCop
             selector[0] = '='
             corrector.replace(block.loc.selector, selector)
           else
+            if block.loc.dot
+              range = dot_range(block.loc)
+              corrector.remove(range)
+            end
+
             corrector.remove(block.loc.selector)
           end
         end
@@ -160,6 +176,10 @@ module RuboCop
 
         def camel_case_constant?(node)
           node.const_type? && node.source =~ CAMEL_CASE
+        end
+
+        def dot_range(loc)
+          range_between(loc.dot.begin_pos, loc.expression.end_pos)
         end
       end
     end

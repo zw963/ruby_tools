@@ -6,7 +6,10 @@ module RuboCop
       # This cop checks for code that can be written with simpler conditionals
       # using `Object#present?` defined by Active Support.
       #
-      # simpler conditionals.
+      # Interaction with `Style/UnlessElse`:
+      # The configuration of `NotBlank` will not produce an offense in the
+      # context of `unless else` if `Style/UnlessElse` is inabled. This is
+      # to prevent interference between the auto-correction of the two cops.
       #
       # @example NotNilAndNotEmpty: true (default)
       #   # Converts usages of `!nil? && !empty?` to `present?`
@@ -41,11 +44,11 @@ module RuboCop
       #   # good
       #   something if foo.present?
       class Present < Cop
-        MSG_NOT_BLANK = 'Use `%<prefer>s` instead of `%<current>s`.'.freeze
+        MSG_NOT_BLANK = 'Use `%<prefer>s` instead of `%<current>s`.'
         MSG_EXISTS_AND_NOT_EMPTY = 'Use `%<prefer>s` instead of ' \
-                                   '`%<current>s`.'.freeze
+                                   '`%<current>s`.'
         MSG_UNLESS_BLANK = 'Use `if %<prefer>s` instead of ' \
-                           '`%<current>s`.'.freeze
+                           '`%<current>s`.'
 
         def_node_matcher :exists_and_not_empty?, <<-PATTERN
           (and
@@ -104,6 +107,7 @@ module RuboCop
         def on_if(node)
           return unless cop_config['UnlessBlank']
           return unless node.unless?
+          return if node.else? && config.for_cop('Style/UnlessElse')['Enabled']
 
           unless_blank?(node) do |method_call, receiver|
             range = unless_condition(node, method_call)

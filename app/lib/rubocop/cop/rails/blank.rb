@@ -6,6 +6,11 @@ module RuboCop
       # This cop checks for code that can be written with simpler conditionals
       # using `Object#blank?` defined by Active Support.
       #
+      # Interaction with `Style/UnlessElse`:
+      # The configuration of `NotPresent` will not produce an offense in the
+      # context of `unless else` if `Style/UnlessElse` is inabled. This is
+      # to prevent interference between the auto-correction of the two cops.
+      #
       # @example NilOrEmpty: true (default)
       #   # Converts usages of `nil? || empty?` to `blank?`
       #
@@ -49,10 +54,10 @@ module RuboCop
       #     !present?
       #   end
       class Blank < Cop
-        MSG_NIL_OR_EMPTY = 'Use `%<prefer>s` instead of `%<current>s`.'.freeze
-        MSG_NOT_PRESENT = 'Use `%<prefer>s` instead of `%<current>s`.'.freeze
+        MSG_NIL_OR_EMPTY = 'Use `%<prefer>s` instead of `%<current>s`.'
+        MSG_NOT_PRESENT = 'Use `%<prefer>s` instead of `%<current>s`.'
         MSG_UNLESS_PRESENT = 'Use `if %<prefer>s` instead of ' \
-                             '`%<current>s`.'.freeze
+                             '`%<current>s`.'
 
         # `(send nil $_)` is not actually a valid match for an offense. Nodes
         # that have a single method call on the left hand side
@@ -111,6 +116,7 @@ module RuboCop
         def on_if(node)
           return unless cop_config['UnlessPresent']
           return unless node.unless?
+          return if node.else? && config.for_cop('Style/UnlessElse')['Enabled']
 
           unless_present?(node) do |method_call, receiver|
             range = unless_condition(node, method_call)
