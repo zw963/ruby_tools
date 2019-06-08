@@ -17,7 +17,9 @@ module RuboCop
       #   - always_inspect
       #   - always_ignore
       #   - ignore_implicit (without curly braces)
-      #   - ignore_explicit (with curly braces)
+      #
+      # Alternatively you can specify multiple allowed styles. That's done by
+      # passing a list of styles to EnforcedStyles.
       #
       # @example EnforcedHashRocketStyle: key (default)
       #   # bad
@@ -198,30 +200,25 @@ module RuboCop
           return if ignored_node?(node)
           return if node.pairs.empty? || node.single_line?
 
-          return unless alignment_for_hash_rockets.checkable_layout?(node) &&
-                        alignment_for_colons.checkable_layout?(node)
+          return unless alignment_for_hash_rockets
+                        .any? { |a| a.checkable_layout?(node) } &&
+                        alignment_for_colons
+                        .any? { |a| a.checkable_layout?(node) }
 
           check_pairs(node)
         end
 
         def autocorrect(node)
-          # We can't use the instance variable inside the lambda. That would
-          # just give each lambda the same reference and they would all get the
-          # last value of each. A local variable fixes the problem.
-          key_delta = column_deltas[:key] || 0
+          delta = column_deltas[alignment_for(node).first.class][node]
+          return if delta.nil?
 
-          if !node.value
-            correct_no_value(key_delta, node.source_range)
-          else
-            correct_key_value(key_delta, node.key.source_range,
-                              node.value.source_range,
-                              node.loc.operator)
-          end
+          correct_node(node, delta)
         end
 
-        private
-
+        attr_accessor :offences_by
         attr_accessor :column_deltas
+
+        private
 
         def double_splat?(node)
           node.children.last.is_a?(Symbol)
@@ -229,15 +226,37 @@ module RuboCop
 
         def check_pairs(node)
           first_pair = node.pairs.first
-          self.column_deltas = alignment_for(first_pair)
-                               .deltas_for_first_pair(first_pair, node)
-          add_offense(first_pair) unless good_alignment?
+          self.offences_by = {}
+          self.column_deltas = Hash.new { |hash, key| hash[key] = {} }
+
+          alignment_for(first_pair).each do |alignment|
+            delta = alignment.deltas_for_first_pair(first_pair, node)
+            check_delta delta, node: first_pair, alignment: alignment
+          end
 
           node.children.each do |current|
-            self.column_deltas = alignment_for(current)
-                                 .deltas(first_pair, current)
-            add_offense(current) unless good_alignment?
+            alignment_for(current).each do |alignment|
+              delta = alignment.deltas(first_pair, current)
+              check_delta delta, node: current, alignment: alignment
+            end
           end
+
+          add_offences
+        end
+
+        def add_offences
+          _format, offences = offences_by.min_by { |_, v| v.length }
+          (offences || []).each do |offence|
+            add_offense offence
+          end
+        end
+
+        def check_delta(delta, node:, alignment:)
+          offences_by[alignment.class] ||= []
+          return if good_alignment? delta
+
+          column_deltas[alignment.class][node] = delta
+          offences_by[alignment.class].push(node)
         end
 
         def ignore_hash_argument?(node)
@@ -267,16 +286,31 @@ module RuboCop
             new_alignment('EnforcedColonStyle')
         end
 
+        def correct_node(node, delta)
+          # We can't use the instance variable inside the lambda. That would
+          # just give each lambda the same reference and they would all get the
+          # last value of each. A local variable fixes the problem.
+
+          if !node.value
+            correct_no_value(delta[:key] || 0, node.source_range)
+          else
+            correct_key_value(delta, node.key.source_range,
+                              node.value.source_range,
+                              node.loc.operator)
+          end
+        end
+
         def correct_no_value(key_delta, key)
           ->(corrector) { adjust(corrector, key_delta, key) }
         end
 
-        def correct_key_value(key_delta, key, value, separator)
+        def correct_key_value(delta, key, value, separator)
           # We can't use the instance variable inside the lambda. That would
           # just give each lambda the same reference and they would all get the
           # last value of each. Some local variables fix the problem.
-          separator_delta = column_deltas[:separator] || 0
-          value_delta     = column_deltas[:value] || 0
+          separator_delta = delta[:separator] || 0
+          value_delta     = delta[:value]     || 0
+          key_delta       = delta[:key]       || 0
 
           key_column = key.column
           key_delta = -key_column if key_delta < -key_column
@@ -289,11 +323,20 @@ module RuboCop
         end
 
         def new_alignment(key)
-          case cop_config[key]
-          when 'key'       then KeyAlignment.new
-          when 'table'     then TableAlignment.new
-          when 'separator' then SeparatorAlignment.new
-          else raise "Unknown #{key}: #{cop_config[key]}"
+          formats = cop_config[key]
+          formats = [formats] if formats.is_a? String
+
+          formats.uniq.map do |format|
+            case format
+            when 'key'
+              KeyAlignment.new
+            when 'table'
+              TableAlignment.new
+            when 'separator'
+              SeparatorAlignment.new
+            else
+              raise "Unknown #{key}: #{formats}"
+            end
           end
         end
 
@@ -306,7 +349,7 @@ module RuboCop
           end
         end
 
-        def good_alignment?
+        def good_alignment?(column_deltas)
           column_deltas.values.all?(&:zero?)
         end
       end

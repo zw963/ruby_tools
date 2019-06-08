@@ -1,4 +1,5 @@
 # Common configuration.
+require: rubocop-performance
 
 AllCops:
   RubyInterpreters:
@@ -260,6 +261,7 @@ Layout/AlignHash:
                  Align the elements of a hash literal if they span more than
                  one line.
   Enabled: true
+  AllowMultipleStyles: true
   VersionAdded: '0.49'
   # Alignment of entries using hash rocket as separator. Valid values are:
   #
@@ -508,6 +510,13 @@ Layout/EmptyLinesAroundAccessModifier:
   StyleGuide: '#empty-lines-around-access-modifier'
   Enabled: true
   VersionAdded: '0.49'
+  EnforcedStyle: around
+  SupportedStyles:
+    - around
+    - only_before
+  Reference:
+    # A reference to `EnforcedStyle: only_before`.
+    - https://edgeguides.rubyonrails.org/contributing_to_ruby_on_rails.html#follow-the-coding-conventions
 
 Layout/EmptyLinesAroundArguments:
   Description: "Keeps track of empty lines around method arguments."
@@ -780,6 +789,9 @@ Layout/IndentationConsistency:
   SupportedStyles:
     - normal
     - rails
+  Reference:
+    # A reference to `EnforcedStyle: rails`.
+    - https://edgeguides.rubyonrails.org/contributing_to_ruby_on_rails.html#follow-the-coding-conventions
 
 Layout/IndentationWidth:
   Description: 'Use 2 spaces for indentation.'
@@ -1359,7 +1371,9 @@ Lint/HandleExceptions:
   Description: "Don't suppress exception."
   StyleGuide: '#dont-hide-exceptions'
   Enabled: true
+  AllowComments: false
   VersionAdded: '0.9'
+  VersionChanged: '0.70'
 
 Lint/HeredocMethodCallPosition:
   Description: >-
@@ -1462,6 +1476,8 @@ Lint/NumberConversion:
   Description: 'Checks unsafe usage of number conversion methods.'
   Enabled: false
   VersionAdded: '0.53'
+  VersionChanged: '0.70'
+  SafeAutoCorrect: false
 
 Lint/OrderedMagicComments:
   Description: 'Checks the proper ordering of magic comments and whether a magic comment is not placed before a shebang.'
@@ -1480,6 +1496,7 @@ Lint/PercentStringArray:
   Description: >-
                  Checks for unwanted commas and quotes in %w/%W literals.
   Enabled: true
+  Safe: false
   VersionAdded: '0.41'
 
 Lint/PercentSymbolArray:
@@ -2924,6 +2941,13 @@ Style/ConditionalAssignment:
   SingleLineConditionsOnly: true
   IncludeTernaryExpressions: true
 
+Style/ConstantVisibility:
+  Description: >-
+                 Check that class- and module constants have
+                 visibility declarations.
+  Enabled: false
+  VersionAdded: '0.66'
+
 # Checks that you have put a copyright in a comment before any code.
 #
 # You can override the default Notice in your .rubocop.yml file.
@@ -2942,13 +2966,6 @@ Style/ConditionalAssignment:
 #   Notice: 'Copyright (\(c\) )?2015 Yahoo! Inc'
 #   AutocorrectNotice: '# Copyright (c) 2015 Yahoo! Inc.'
 #
-Style/ConstantVisibility:
-  Description: >-
-                 Check that class- and module constants have
-                 visibility declarations.
-  Enabled: false
-  VersionAdded: '0.66'
-
 Style/Copyright:
   Description: 'Include a copyright notice in each file before any code.'
   Enabled: false
@@ -3752,8 +3769,9 @@ Style/PreferredHashMethods:
   Description: 'Checks use of `has_key?` and `has_value?` Hash methods.'
   StyleGuide: '#hash-key'
   Enabled: true
+  Safe: false
   VersionAdded: '0.41'
-  VersionChanged: '0.44'
+  VersionChanged: '0.70'
   EnforcedStyle: short
   SupportedStyles:
     - short

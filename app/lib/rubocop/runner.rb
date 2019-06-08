@@ -24,6 +24,14 @@ module RuboCop
 
     def initialize(options, config_store)
       @options = options
+
+      if @options.key?(:rails)
+        warn <<~MESSAGE
+          `-R/--rails` option and Rails cops will be removed from RuboCop 0.72. Use the `rubocop-rails` gem instead.
+          https://github.com/rubocop-hq/rubocop/blob/master/manual/migrate_rails_cops.md
+        MESSAGE
+      end
+
       @config_store = config_store
       @errors = []
       @warnings = []
@@ -72,7 +80,12 @@ module RuboCop
 
       each_inspected_file(files) { |file| inspected_files << file }
     ensure
-      ResultCache.cleanup(@config_store, @options[:debug]) if cached_run?
+      # OPTIMIZE: Calling `ResultCache.cleanup` takes time. This optimization
+      # mainly targets editors that integrates RuboCop. When RuboCop is run
+      # by an editor, it should be inspecting only one file.
+      if files.size > 1 && cached_run?
+        ResultCache.cleanup(@config_store, @options[:debug])
+      end
       formatter_set.finished(inspected_files.freeze)
       formatter_set.close_output_files
     end
@@ -268,7 +281,10 @@ module RuboCop
 
     def inspect_file(processed_source)
       config = @config_store.for(processed_source.path)
-      enable_rails_cops(config) if @options[:rails]
+      if @options[:rails] ||
+         ConfigLoader.required_features.include?('rubocop-rails')
+        enable_rails_cops(config)
+      end
       team = Cop::Team.new(mobilized_cop_classes(config), config, @options)
       offenses = team.inspect_file(processed_source)
       @errors.concat(team.errors)

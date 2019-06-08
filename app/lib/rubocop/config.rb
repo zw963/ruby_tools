@@ -21,7 +21,7 @@ module RuboCop
 
     # 2.3 is the oldest officially supported Ruby version.
     DEFAULT_RUBY_VERSION = 2.3
-    KNOWN_RUBIES = [2.3, 2.4, 2.5, 2.6].freeze
+    KNOWN_RUBIES = [2.3, 2.4, 2.5, 2.6, 2.7].freeze
     OBSOLETE_RUBIES = {
       1.9 => '0.50', 2.0 => '0.50', 2.1 => '0.58', 2.2 => '0.69'
     }.freeze
@@ -543,8 +543,10 @@ module RuboCop
         styles.each do |style_name, style|
           supported_key = RuboCop::Cop::Util.to_supported_styles(style_name)
           valid = ConfigLoader.default_configuration[name][supported_key]
+
           next unless valid
           next if valid.include?(style)
+          next if validate_support_and_has_list(name, style, valid)
 
           msg = "invalid #{style_name} '#{style}' for #{name} found in " \
             "#{smart_loaded_path}\n" \
@@ -552,6 +554,12 @@ module RuboCop
           raise ValidationError, msg
         end
       end
+    end
+
+    def validate_support_and_has_list(name, formats, valid)
+      ConfigLoader.default_configuration[name]['AllowMultipleStyles'] &&
+        formats.is_a?(Array) &&
+        formats.all? { |format| valid.include?(format) }
     end
 
     def reject_obsolete_cops_and_parameters
@@ -712,7 +720,7 @@ module RuboCop
         end
       end
 
-      cop_options.fetch('Enabled', true)
+      cop_options.fetch('Enabled') { !for_all_cops['DisabledByDefault'] }
     end
 
     def smart_loaded_path

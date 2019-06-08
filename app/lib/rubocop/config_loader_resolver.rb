@@ -6,9 +6,17 @@ require 'pathname'
 module RuboCop
   # A help class for ConfigLoader that handles configuration resolution.
   class ConfigLoaderResolver
+    attr_reader :required_features
+
+    def initialize
+      @required_features = []
+    end
+
     def resolve_requires(path, hash)
       config_dir = File.dirname(path)
       Array(hash.delete('require')).each do |r|
+        @required_features << r
+
         if r.start_with?('.')
           require(File.join(config_dir, r))
         else
@@ -55,7 +63,7 @@ module RuboCop
     # only cops from user configuration are enabled. If
     # AllCops::EnabledByDefault is true, it changes the Enabled params so that
     # only cops explicitly disabled in user configuration are disabled.
-    def merge_with_default(config, config_file)
+    def merge_with_default(config, config_file, unset_nil:)
       default_configuration = ConfigLoader.default_configuration
 
       disabled_by_default = config.for_all_cops['DisabledByDefault']
@@ -71,7 +79,8 @@ module RuboCop
         config = handle_disabled_by_default(config, default_configuration)
       end
 
-      opts = { inherit_mode: config['inherit_mode'] || {}, unset_nil: true }
+      opts = { inherit_mode: config['inherit_mode'] || {},
+               unset_nil: unset_nil }
       Config.new(merge(default_configuration, config, opts), config_file)
     end
 
