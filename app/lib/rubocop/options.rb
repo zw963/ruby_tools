@@ -109,6 +109,8 @@ module RuboCop
         @validator.validate_exclude_limit_option
       end
 
+      option(opts, '--disable-uncorrectable')
+
       option(opts, '--no-offense-counts') do
         @options[:no_offense_counts] = true
       end
@@ -159,7 +161,6 @@ module RuboCop
       option(opts, '-D', '--[no-]display-cop-names')
       option(opts, '-E', '--extra-details')
       option(opts, '-S', '--display-style-guide')
-      option(opts, '-R', '--rails')
       option(opts, '-a', '--auto-correct')
       option(opts, '--ignore-disable-comments')
 
@@ -254,6 +255,7 @@ module RuboCop
       @options = options
     end
 
+    # rubocop:disable Metrics/AbcSize
     def validate_compatibility # rubocop:disable Metrics/MethodLength
       if only_includes_unneeded_disable?
         raise OptionArgumentError, 'Lint/UnneededCopDisableDirective can not ' \
@@ -271,6 +273,7 @@ module RuboCop
           '--display-only-fail-level-offenses'
       end
       validate_auto_gen_config
+      validate_auto_correct
       validate_parallel
 
       return if incompatible_options.size <= 1
@@ -278,6 +281,7 @@ module RuboCop
       raise OptionArgumentError, 'Incompatible cli options: ' \
                                  "#{incompatible_options.inspect}"
     end
+    # rubocop:enable Metrics/AbcSize
 
     def validate_auto_gen_config
       return if @options.key?(:auto_gen_config)
@@ -291,6 +295,15 @@ module RuboCop
                 format(message, flag: option.to_s.tr('_', '-'))
         end
       end
+    end
+
+    def validate_auto_correct
+      return if @options.key?(:auto_correct)
+      return unless @options.key?(:disable_uncorrectable)
+
+      raise OptionArgumentError,
+            format('--%<flag>s can only be used together with --auto-correct.',
+                   flag: '--disable-uncorrectable')
     end
 
     def validate_parallel
@@ -379,6 +392,9 @@ module RuboCop
       exclude_limit:                    ['Used together with --auto-gen-config to',
                                          'set the limit for how many Exclude',
                                          "properties to generate. Default is #{MAX_EXCL}."],
+      disable_uncorrectable:            ['Used with --auto-correct to annotate any',
+                                         'offenses that do not support autocorrect',
+                                         'with `rubocop:disable` comments.'],
       force_exclusion:                  ['Force excluding files specified in the',
                                          'configuration `Exclude` even if they are',
                                          'explicitly passed as arguments.'],
@@ -429,7 +445,6 @@ module RuboCop
                                          'Default is true.'],
       display_style_guide:              'Display style guide URLs in offense messages.',
       extra_details:                    'Display extra details in offense messages.',
-      rails:                            'Run extra Rails cops.',
       lint:                             'Run only lint cops.',
       safe:                             'Run only safe cops.',
       list_target_files:                'List all files RuboCop will inspect.',

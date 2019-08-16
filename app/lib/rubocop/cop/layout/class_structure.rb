@@ -129,7 +129,7 @@ module RuboCop
       #     end
       #   end
       #
-      # @see https://github.com/rubocop-hq/ruby-style-guide#consistent-classes
+      # @see https://rubystyle.guide#consistent-classes
       class ClassStructure < Cop
         HUMANIZED_NODE_TYPE = {
           casgn: :constants,
@@ -142,7 +142,7 @@ module RuboCop
         MSG = '`%<category>s` is supposed to appear before ' \
               '`%<previous>s`.'
 
-        def_node_matcher :visibility_block?, <<-PATTERN
+        def_node_matcher :visibility_block?, <<~PATTERN
           (send nil? { :private :protected :public })
         PATTERN
 

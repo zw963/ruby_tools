@@ -220,12 +220,23 @@ module RuboCop
 
       private
 
-      def_node_matcher :macro_scope?, <<-PATTERN
+      def_node_matcher :macro_scope?, <<~PATTERN
         {^{({sclass class module block} ...) class_constructor?}
-         ^^{({sclass class module block} ... ({begin if} ...)) class_constructor?}
+         ^^#ascend_macro_scope?
          ^#macro_kwbegin_wrapper?
          #root_node?}
       PATTERN
+
+      def_node_matcher :wrapped_macro_scope?, <<~PATTERN
+        {({sclass class module block} ... ({begin if} ...)) class_constructor?}
+      PATTERN
+
+      def ascend_macro_scope?(ancestor)
+        return true if wrapped_macro_scope?(ancestor)
+        return false if root_node?(ancestor)
+
+        ascend_macro_scope?(ancestor.parent)
+      end
 
       # Check if a node's parent is a kwbegin wrapper within a macro scope
       #
@@ -245,15 +256,15 @@ module RuboCop
         node.parent.nil?
       end
 
-      def_node_matcher :adjacent_def_modifier?, <<-PATTERN
+      def_node_matcher :adjacent_def_modifier?, <<~PATTERN
         (send nil? _ ({def defs} ...))
       PATTERN
 
-      def_node_matcher :bare_access_modifier_declaration?, <<-PATTERN
+      def_node_matcher :bare_access_modifier_declaration?, <<~PATTERN
         (send nil? {:public :protected :private :module_function})
       PATTERN
 
-      def_node_matcher :non_bare_access_modifier_declaration?, <<-PATTERN
+      def_node_matcher :non_bare_access_modifier_declaration?, <<~PATTERN
         (send nil? {:public :protected :private :module_function} _)
       PATTERN
     end

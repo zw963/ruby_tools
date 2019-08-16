@@ -3,18 +3,22 @@
 module RuboCop
   module Cop
     module RSpec
-      # `context` block descriptions should start with 'when', or 'with'.
+      # Checks that `context` docstring starts with an allowed prefix.
       #
       # @see https://github.com/reachlocal/rspec-style-guide#context-descriptions
       # @see http://www.betterspecs.org/#contexts
       #
-      # @example `Prefixes` configuration option, defaults: 'when', 'with', and
-      # 'without'
-      #   Prefixes:
-      #     - when
-      #     - with
-      #     - without
-      #     - if
+      # @example `Prefixes` configuration
+      #
+      #   # .rubocop.yml
+      #   # RSpec/ContextWording:
+      #   #   Prefixes:
+      #   #     - when
+      #   #     - with
+      #   #     - without
+      #   #     - if
+      #   #     - unless
+      #   #     - for
       #
       # @example
       #   # bad
@@ -35,7 +39,8 @@ module RuboCop
 
         def on_block(node)
           context_wording(node) do |context|
-            add_offense(context, message: message)
+            add_offense(context,
+                        message: format(MSG, prefixes: joined_prefixes))
           end
         end
 
@@ -45,20 +50,16 @@ module RuboCop
           !prefixes.include?(description.split.first)
         end
 
-        def prefixes
-          cop_config['Prefixes'] || []
-        end
-
-        def message
-          format(MSG, prefixes: joined_prefixes)
-        end
-
         def joined_prefixes
           quoted = prefixes.map { |prefix| "'#{prefix}'" }
           return quoted.first if quoted.size == 1
 
           quoted << "or #{quoted.pop}"
           quoted.join(', ')
+        end
+
+        def prefixes
+          cop_config['Prefixes'] || []
         end
       end
     end

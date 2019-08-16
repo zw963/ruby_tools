@@ -10,6 +10,7 @@ module RuboCop
       # The maximum length is configurable.
       # The tab size is configured in the `IndentationWidth`
       # of the `Layout/Tab` cop.
+      # It also ignores a shebang line by default.
       #
       # This cop has some autocorrection capabilities.
       # It can programmatically shorten certain long lines by
@@ -138,7 +139,12 @@ module RuboCop
 
         def ignored_line?(line, line_index)
           matches_ignored_pattern?(line) ||
+            shebang?(line, line_index) ||
             heredocs && line_in_permitted_heredoc?(line_index.succ)
+        end
+
+        def shebang?(line, line_index)
+          line_index.zero? && line.start_with?('#!')
         end
 
         def register_offense(loc, line, line_index)

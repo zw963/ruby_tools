@@ -35,14 +35,14 @@ module RuboCop
       class Debugger < Cop
         MSG = 'Remove debugger entry point `%<source>s`.'
 
-        def_node_matcher :kernel?, <<-PATTERN
+        def_node_matcher :kernel?, <<~PATTERN
           {
             (const nil? :Kernel)
             (const (cbase) :Kernel)
           }
         PATTERN
 
-        def_node_matcher :debugger_call?, <<-PATTERN
+        def_node_matcher :debugger_call?, <<~PATTERN
           {(send {nil? #kernel?} {:debugger :byebug} ...)
            (send (send {#kernel? nil?} :binding)
              {:pry :remote_pry :pry_remote} ...)
@@ -52,11 +52,9 @@ module RuboCop
                       :save_screenshot} ...)}
         PATTERN
 
-        def_node_matcher :binding_irb_call?, <<-PATTERN
+        def_node_matcher :binding_irb_call?, <<~PATTERN
           (send (send {#kernel? nil?} :binding) :irb ...)
         PATTERN
-
-        def_node_matcher :pry_rescue?, '(send (const nil? :Pry) :rescue ...)'
 
         def on_send(node)
           return unless debugger_call?(node) || binding_irb?(node)

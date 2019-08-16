@@ -68,7 +68,7 @@ module RuboCop
         private
 
         def expand_elsif(node, elsif_branches = [])
-          return [] if node.nil? || !node.if_type?
+          return [] if node.nil? || !node.if_type? || !node.elsif?
 
           elsif_branches << node.if_branch
 
@@ -219,11 +219,9 @@ module RuboCop
         SINGLE_LINE_CONDITIONS_ONLY = 'SingleLineConditionsOnly'
         WIDTH = 'Width'
 
-        def_node_matcher :condition?, '{if case}'
-
         # The shovel operator `<<` does not have its own type. It is a `send`
         # type.
-        def_node_matcher :assignment_type?, <<-PATTERN
+        def_node_matcher :assignment_type?, <<~PATTERN
           {
             #{ASSIGNMENT_TYPES.join(' ')}
             (send _recv {:[]= :<< :=~ :!~ :<=> #end_with_eq?} ...)
@@ -596,7 +594,8 @@ module RuboCop
 
             remove_whitespace_in_branches(corrector, branch, condition, column)
 
-            branch_else = branch.parent.loc.else
+            return unless (branch_else = branch.parent.loc.else)
+
             corrector.remove_preceding(branch_else, branch_else.column - column)
           end
         end

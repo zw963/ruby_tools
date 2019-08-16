@@ -5,12 +5,13 @@ module RuboCop
     module Layout
       # This cop checks for inconsistent indentation.
       #
-      # The difference between `rails` and `normal` is that the `rails` style
-      # prescribes that in classes and modules the `protected` and `private`
-      # modifier keywords shall be indented the same as public methods and that
-      # protected and private members shall be indented one step more than the
-      # modifiers. Other than that, both styles mean that entities on the same
-      # logical depth shall have the same indentation.
+      # The difference between `indented_internal_methods` and `normal` is
+      # that the `indented_internal_methods` style prescribes that in
+      # classes and modules the `protected` and `private` modifier keywords
+      # shall be indented the same as public methods and that protected and
+      # private members shall be indented one step more than the modifiers.
+      # Other than that, both styles mean that entities on the same logical
+      # depth shall have the same indentation.
       #
       # @example EnforcedStyle: normal (default)
       #   # bad
@@ -65,7 +66,7 @@ module RuboCop
       #     end
       #   end
       #
-      # @example EnforcedStyle: rails
+      # @example EnforcedStyle: indented_internal_methods
       #   # bad
       #   class A
       #     def test
@@ -166,8 +167,8 @@ module RuboCop
         end
 
         def check(node)
-          if style == :rails
-            check_rails_style(node)
+          if style == :indented_internal_methods
+            check_indented_internal_methods_style(node)
           else
             check_normal_style(node)
           end
@@ -180,13 +181,13 @@ module RuboCop
           )
         end
 
-        def check_rails_style(node)
+        def check_indented_internal_methods_style(node)
           children_to_check = [[]]
           node.children.each do |child|
             # Modifier nodes have special indentation and will be checked by
             # the AccessModifierIndentation cop. This cop uses them as dividers
-            # in rails mode. Then consistency is checked only within each
-            # section delimited by a modifier node.
+            # in indented_internal_methods mode. Then consistency is checked
+            # only within each section delimited by a modifier node.
             if bare_access_modifier?(child)
               children_to_check << []
             else

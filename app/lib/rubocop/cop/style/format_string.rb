@@ -40,12 +40,16 @@ module RuboCop
 
         MSG = 'Favor `%<prefer>s` over `%<current>s`.'
 
-        def_node_matcher :formatter, <<-PATTERN
-        {
-          (send nil? ${:sprintf :format} _ _ ...)
-          (send {str dstr} $:% ... )
-          (send !nil? $:% {array hash})
-        }
+        def_node_matcher :formatter, <<~PATTERN
+          {
+            (send nil? ${:sprintf :format} _ _ ...)
+            (send {str dstr} $:% ... )
+            (send !nil? $:% {array hash})
+          }
+        PATTERN
+
+        def_node_matcher :variable_argument?, <<~PATTERN
+          (send {str dstr} :% {send_type? lvar_type?})
         PATTERN
 
         def on_send(node)
@@ -70,10 +74,10 @@ module RuboCop
         end
 
         def autocorrect(node)
-          lambda do |corrector|
-            detected_method = node.method_name
+          return if variable_argument?(node)
 
-            case detected_method
+          lambda do |corrector|
+            case node.method_name
             when :%
               autocorrect_from_percent(corrector, node)
             when :format, :sprintf

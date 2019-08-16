@@ -52,7 +52,7 @@ module RuboCop
         MSG = 'Use %<configured_indentation_width>d (not %<indentation>d) ' \
               'spaces for%<name>s indentation.'
 
-        def_node_matcher :access_modifier?, <<-PATTERN
+        def_node_matcher :access_modifier?, <<~PATTERN
           [(send ...) access_modifier?]
         PATTERN
 
@@ -83,7 +83,7 @@ module RuboCop
 
           check_indentation(end_loc, node.body)
 
-          return unless indentation_consistency_style == 'rails'
+          return unless indented_internal_methods_style?
 
           check_members(end_loc, [node.body])
         end
@@ -155,14 +155,10 @@ module RuboCop
 
           return unless members.any? && members.first.begin_type?
 
-          if indentation_consistency_style == 'rails'
-            check_members_for_rails_style(members)
+          if indentation_consistency_style == 'indented_internal_methods'
+            check_members_for_indented_internal_methods_style(members)
           else
-            members.first.children.each do |member|
-              next if member.send_type? && member.access_modifier?
-
-              check_indentation(base, member)
-            end
+            check_members_for_normal_style(base, members)
           end
         end
 
@@ -170,16 +166,26 @@ module RuboCop
           return unless member
 
           if access_modifier?(member.children.first)
+            return if access_modifier_indentation_style == 'outdent'
+
             member.children.first
           else
             member
           end
         end
 
-        def check_members_for_rails_style(members)
+        def check_members_for_indented_internal_methods_style(members)
           each_member(members) do |member, previous_modifier|
             check_indentation(previous_modifier, member,
                               indentation_consistency_style)
+          end
+        end
+
+        def check_members_for_normal_style(base, members)
+          members.first.children.each do |member|
+            next if member.send_type? && member.access_modifier?
+
+            check_indentation(base, member)
           end
         end
 
@@ -193,6 +199,18 @@ module RuboCop
               previous_modifier = nil
             end
           end
+        end
+
+        def indented_internal_methods_style?
+          indentation_consistency_style == 'indented_internal_methods'
+        end
+
+        def special_modifier?(node)
+          node.bare_access_modifier? && SPECIAL_MODIFIERS.include?(node.source)
+        end
+
+        def access_modifier_indentation_style
+          config.for_cop('Layout/AccessModifierIndentation')['EnforcedStyle']
         end
 
         def indentation_consistency_style

@@ -50,7 +50,7 @@ RSpec/BeforeAfterAll:
   StyleGuide: http://www.rubydoc.info/gems/rubocop-rspec/RuboCop/Cop/RSpec/BeforeAfterAll
 
 RSpec/ContextWording:
-  Description: "`context` block descriptions should start with 'when', or 'with'."
+  Description: Checks that `context` docstring starts with an allowed prefix.
   Enabled: true
   Prefixes:
   - when
@@ -197,6 +197,11 @@ RSpec/HooksBeforeExamples:
   Description: Checks for before/around/after hooks that come after an example.
   StyleGuide: http://www.rubydoc.info/gems/rubocop-rspec/RuboCop/Cop/RSpec/HooksBeforeExamples
 
+RSpec/ImplicitBlockExpectation:
+  Description: Check that implicit block expectation syntax is not used.
+  Enabled: true
+  StyleGuide: http://www.rubydoc.info/gems/rubocop-rspec/RuboCop/Cop/RSpec/ImplicitBlockExpectation
+
 RSpec/ImplicitExpect:
   Description: Check that a consistent implicit expectation style is used.
   Enabled: true
@@ -250,6 +255,11 @@ RSpec/LeadingSubject:
   Description: Enforce that subject is the first definition in the test.
   Enabled: true
   StyleGuide: http://www.rubydoc.info/gems/rubocop-rspec/RuboCop/Cop/RSpec/LeadingSubject
+
+RSpec/LeakyConstantDeclaration:
+  Description: Checks that no class, module, or constant is declared.
+  Enabled: true
+  StyleGuide: http://www.rubydoc.info/gems/rubocop-rspec/RuboCop/Cop/RSpec/LeakyConstantDeclaration
 
 RSpec/LetBeforeExamples:
   Description: Checks for `let` definitions that come after an example.

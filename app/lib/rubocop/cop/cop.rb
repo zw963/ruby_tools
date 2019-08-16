@@ -31,6 +31,16 @@ module RuboCop
       include IgnoredNode
       include AutocorrectLogic
 
+      Correction = Struct.new(:lambda, :node, :cop) do
+        def call(corrector)
+          lambda.call(corrector)
+        rescue StandardError => e
+          raise ErrorWithAnalyzedFileLocation.new(
+            cause: e, node: node, cop: cop
+          )
+        end
+      end
+
       attr_reader :config, :offenses, :corrections
       attr_accessor :processed_source # TODO: Bad design.
 
@@ -46,10 +56,6 @@ module RuboCop
 
       def self.qualified_cop_name(name, origin)
         registry.qualified_cop_name(name, origin)
-      end
-
-      def self.non_rails
-        registry.without_department(:Rails)
       end
 
       def self.inherited(subclass)
@@ -145,16 +151,36 @@ module RuboCop
       end
 
       def correct(node)
-        return :unsupported unless support_autocorrect?
+        reason = reason_to_not_correct(node)
+        return reason if reason
+
+        @corrected_nodes[node] = true
+        if support_autocorrect?
+          correction = autocorrect(node)
+          return :uncorrected unless correction
+
+          @corrections << Correction.new(correction, node, self)
+        elsif disable_uncorrectable?
+          disable_uncorrectable(node)
+        end
+        :corrected
+      end
+
+      def reason_to_not_correct(node)
+        return :unsupported unless correctable?
         return :uncorrected unless autocorrect?
         return :already_corrected if @corrected_nodes.key?(node)
 
-        @corrected_nodes[node] = true
-        correction = autocorrect(node)
-        return :uncorrected unless correction
+        nil
+      end
 
-        @corrections << correction
-        :corrected
+      def disable_uncorrectable(node)
+        @disabled_lines ||= {}
+        line = node.location.line
+        return if @disabled_lines.key?(line)
+
+        @disabled_lines[line] = true
+        @corrections << Correction.new(disable_offense(node), node, self)
       end
 
       def config_to_allow_offenses

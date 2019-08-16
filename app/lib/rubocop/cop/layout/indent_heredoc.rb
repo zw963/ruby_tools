@@ -37,7 +37,7 @@ module RuboCop
       #   # good
       #   # When EnforcedStyle is powerpack, bad code is auto-corrected to
       #   # the following code.
-      #   <<~RUBY
+      #   <<-RUBY.strip_indent
       #     something
       #   RUBY
       #
@@ -52,7 +52,6 @@ module RuboCop
       class IndentHeredoc < Cop
         include Heredoc
         include ConfigurableEnforcedStyle
-        include SafeMode
 
         RUBY23_TYPE_MSG = 'Use %<indentation_width>d spaces for indentation ' \
                           'in a heredoc by using `<<~` instead of ' \
@@ -207,7 +206,8 @@ module RuboCop
           body = heredoc_body(node)
           body_indent_level = indent_level(body)
           correct_indent_level = base_indent_level(node) + indentation_width
-          body.gsub(/^\s{#{body_indent_level}}/, ' ' * correct_indent_level)
+          body.gsub(/^[^\S\r\n]{#{body_indent_level}}/,
+                    ' ' * correct_indent_level)
         end
 
         def indented_end(node)

@@ -74,7 +74,7 @@ AllCops:
   DisplayStyleGuide: false
   # When specifying style guide URLs, any paths and/or fragments will be
   # evaluated relative to the base URL.
-  StyleGuideBaseURL: https://github.com/rubocop-hq/ruby-style-guide
+  StyleGuideBaseURL: https://rubystyle.guide
   # Extra details are not displayed in offense messages by default. Change
   # behavior by overriding ExtraDetails, or by giving the
   # `-E/--extra-details` option.
@@ -126,14 +126,6 @@ AllCops:
   # from the lock file.) If the Ruby version is still unresolved, RuboCop will
   # use the oldest officially supported Ruby version (currently Ruby 2.3).
   TargetRubyVersion: ~
-  # What version of Rails is the inspected code using?  If a value is specified
-  # for TargetRailsVersion then it is used. Acceptable values are specificed
-  # as a float (i.e. 5.1); the patch version of Rails should not be included.
-  # If TargetRailsVersion is not set, RuboCop will parse the Gemfile.lock or
-  # gems.locked file to find the version of Rails that has been bound to the
-  # application. If neither of those files exist, RuboCop will use Rails 5.0
-  # as the default.
-  TargetRailsVersion: ~
 
 #################### Bundler ###############################
 
@@ -202,6 +194,13 @@ Gemspec/RequiredRubyVersion:
   Description: 'Checks that `required_ruby_version` of gemspec and `TargetRubyVersion` of .rubocop.yml are equal.'
   Enabled: true
   VersionAdded: '0.52'
+  Include:
+    - '**/*.gemspec'
+    -
+Gemspec/RubyVersionGlobalsUsage:
+  Description: Checks usage of RUBY_VERSION in gemspec.
+  Enabled: true
+  VersionAdded: '0.72'
   Include:
     - '**/*.gemspec'
 
@@ -779,8 +778,8 @@ Layout/IndentationConsistency:
   StyleGuide: '#spaces-indentation'
   Enabled: true
   VersionAdded: '0.49'
-  # The difference between `rails` and `normal` is that the `rails` style
-  # prescribes that in classes and modules the `protected` and `private`
+  # The difference between `indented` and `normal` is that the `indented_internal_methods`
+  # style prescribes that in classes and modules the `protected` and `private`
   # modifier keywords shall be indented the same as public methods and that
   # protected and private members shall be indented one step more than the
   # modifiers. Other than that, both styles mean that entities on the same
@@ -788,9 +787,9 @@ Layout/IndentationConsistency:
   EnforcedStyle: normal
   SupportedStyles:
     - normal
-    - rails
+    - indented_internal_methods
   Reference:
-    # A reference to `EnforcedStyle: rails`.
+    # A reference to `EnforcedStyle: indented_internal_methods`.
     - https://edgeguides.rubyonrails.org/contributing_to_ruby_on_rails.html#follow-the-coding-conventions
 
 Layout/IndentationWidth:
@@ -818,6 +817,8 @@ Layout/LeadingCommentSpace:
   StyleGuide: '#hash-space'
   Enabled: true
   VersionAdded: '0.49'
+  VersionChanged: '0.73'
+  AllowDoxygenCommentStyle: false
 
 Layout/MultilineArrayBraceLayout:
   Description: >-
@@ -1350,7 +1351,7 @@ Lint/ErbNewArguments:
   VersionAdded: '0.56'
 
 Lint/FlipFlop:
-  Description: 'Checks for flip-flops'
+  Description: 'Checks for flip-flops.'
   StyleGuide: '#no-flip-flops'
   Enabled: true
   VersionAdded: '0.16'
@@ -1408,7 +1409,7 @@ Lint/InheritException:
     - standard_error
 
 Lint/InterpolationCheck:
-  Description: 'Raise warning for interpolation in single q strs'
+  Description: 'Raise warning for interpolation in single q strs.'
   Enabled: true
   VersionAdded: '0.50'
 
@@ -1432,7 +1433,7 @@ Lint/Loop:
   VersionAdded: '0.9'
 
 Lint/MissingCopEnableDirective:
-  Description: 'Checks for a `# rubocop:enable` after `# rubocop:disable`'
+  Description: 'Checks for a `# rubocop:enable` after `# rubocop:disable`.'
   Enabled: true
   VersionAdded: '0.52'
   # Maximum number of consecutive lines the cop can be disabled for.
@@ -1620,7 +1621,7 @@ Lint/StringConversionInInterpolation:
   VersionChanged: '0.20'
 
 Lint/Syntax:
-  Description: 'Checks syntax error'
+  Description: 'Checks syntax error.'
   Enabled: true
   VersionAdded: '0.9'
 
@@ -1636,7 +1637,7 @@ Lint/UnderscorePrefixedVariableName:
   AllowKeywordBlockArguments: false
 
 Lint/UnifiedInteger:
-  Description: 'Use Integer instead of Fixnum or Bignum'
+  Description: 'Use Integer instead of Fixnum or Bignum.'
   Enabled: true
   VersionAdded: '0.43'
 
@@ -1659,9 +1660,10 @@ Lint/UnneededRequireStatement:
   VersionAdded: '0.51'
 
 Lint/UnneededSplatExpansion:
-  Description: 'Checks for splat unnecessarily being called on literals'
+  Description: 'Checks for splat unnecessarily being called on literals.'
   Enabled: true
   VersionAdded: '0.43'
+  VersionChanged: '0.74'
 
 Lint/UnreachableCode:
   Description: 'Unreachable code.'
@@ -1768,7 +1770,7 @@ Metrics/BlockLength:
     - '**/*.gemspec'
 
 Metrics/BlockNesting:
-  Description: 'Avoid excessive block nesting'
+  Description: 'Avoid excessive block nesting.'
   StyleGuide: '#three-is-the-number-thou-shalt-count'
   Enabled: true
   VersionAdded: '0.25'
@@ -2079,461 +2081,6 @@ Naming/VariableNumber:
     - normalcase
     - non_integer
 
-#################### Rails #################################
-
-# By default, the rails cops are not run. Override in project or home
-# directory .rubocop.yml files, or by giving the -R/--rails option.
-Rails:
-  Enabled: false
-
-Rails/ActionFilter:
-  Description: 'Enforces consistent use of action filter methods.'
-  Enabled: true
-  VersionAdded: '0.19'
-  EnforcedStyle: action
-  SupportedStyles:
-    - action
-    - filter
-  Include:
-    - app/controllers/**/*.rb
-
-Rails/ActiveRecordAliases:
-  Description: >-
-                  Avoid Active Record aliases:
-                  Use `update` instead of `update_attributes`.
-                  Use `update!` instead of `update_attributes!`.
-  Enabled: true
-  VersionAdded: '0.53'
-
-Rails/ActiveRecordOverride:
-  Description: >-
-                  Check for overriding Active Record methods instead of using
-                  callbacks.
-  Enabled: true
-  VersionAdded: '0.67'
-  Include:
-    - app/models/**/*.rb
-
-Rails/ActiveSupportAliases:
-  Description: >-
-                  Avoid ActiveSupport aliases of standard ruby methods:
-                  `String#starts_with?`, `String#ends_with?`,
-                  `Array#append`, `Array#prepend`.
-  Enabled: true
-  VersionAdded: '0.48'
-
-Rails/ApplicationJob:
-  Description: 'Check that jobs subclass ApplicationJob.'
-  Enabled: true
-  VersionAdded: '0.49'
-
-Rails/ApplicationRecord:
-  Description: 'Check that models subclass ApplicationRecord.'
-  Enabled: true
-  VersionAdded: '0.49'
-
-Rails/AssertNot:
-  Description: 'Use `assert_not` instead of `assert !`.'
-  Enabled: true
-  VersionAdded: '0.56'
-  Include:
-    - '**/test/**/*'
-
-Rails/BelongsTo:
-  Description: >-
-                  Use `optional: true` instead of `required: false` for
-                  `belongs_to` relations'
-  Enabled: true
-  VersionAdded: '0.62'
-
-Rails/Blank:
-  Description: 'Enforces use of `blank?`.'
-  Enabled: true
-  VersionAdded: '0.48'
-  VersionChanged: '0.67'
-  # Convert usages of `nil? || empty?` to `blank?`
-  NilOrEmpty: true
-  # Convert usages of `!present?` to `blank?`
-  NotPresent: true
-  # Convert usages of `unless present?` to `if blank?`
-  UnlessPresent: true
-
-Rails/BulkChangeTable:
-  Description: 'Check whether alter queries are combinable.'
-  Enabled: true
-  VersionAdded: '0.57'
-  Database: null
-  SupportedDatabases:
-    - mysql
-    - postgresql
-  Include:
-    - db/migrate/*.rb
-
-Rails/CreateTableWithTimestamps:
-  Description: >-
-                  Checks the migration for which timestamps are not included
-                  when creating a new table.
-  Enabled: true
-  VersionAdded: '0.52'
-  Include:
-    - db/migrate/*.rb
-
-Rails/Date:
-  Description: >-
-                  Checks the correct usage of date aware methods,
-                  such as Date.today, Date.current etc.
-  Enabled: true
-  VersionAdded: '0.30'
-  VersionChanged: '0.33'
-  # The value `strict` disallows usage of `Date.today`, `Date.current`,
-  # `Date#to_time` etc.
-  # The value `flexible` allows usage of `Date.current`, `Date.yesterday`, etc
-  # (but not `Date.today`) which are overridden by ActiveSupport to handle current
-  # time zone.
-  EnforcedStyle: flexible
-  SupportedStyles:
-    - strict
-    - flexible
-
-Rails/Delegate:
-  Description: 'Prefer delegate method for delegations.'
-  Enabled: true
-  VersionAdded: '0.21'
-  VersionChanged: '0.50'
-  # When set to true, using the target object as a prefix of the
-  # method name without using the `delegate` method will be a
-  # violation. When set to false, this case is legal.
-  EnforceForPrefixed: true
-
-Rails/DelegateAllowBlank:
-  Description: 'Do not use allow_blank as an option to delegate.'
-  Enabled: true
-  VersionAdded: '0.44'
-
-Rails/DynamicFindBy:
-  Description: 'Use `find_by` instead of dynamic `find_by_*`.'
-  StyleGuide: 'https://github.com/rubocop-hq/rails-style-guide#find_by'
-  Enabled: true
-  VersionAdded: '0.44'
-  Whitelist:
-    - find_by_sql
-
-Rails/EnumUniqueness:
-  Description: 'Avoid duplicate integers in hash-syntax `enum` declaration.'
-  Enabled: true
-  VersionAdded: '0.46'
-  Include:
-    - app/models/**/*.rb
-
-Rails/EnvironmentComparison:
-  Description: "Favor `Rails.env.production?` over `Rails.env == 'production'`"
-  Enabled: true
-  VersionAdded: '0.52'
-
-Rails/Exit:
-  Description: >-
-                  Favor `fail`, `break`, `return`, etc. over `exit` in
-                  application or library code outside of Rake files to avoid
-                  exits during unit testing or running in production.
-  Enabled: true
-  VersionAdded: '0.41'
-  Include:
-    - app/**/*.rb
-    - config/**/*.rb
-    - lib/**/*.rb
-  Exclude:
-    - lib/**/*.rake
-
-Rails/FilePath:
-  Description: 'Use `Rails.root.join` for file path joining.'
-  Enabled: true
-  VersionAdded: '0.47'
-  VersionChanged: '0.57'
-  EnforcedStyle: arguments
-  SupportedStyles:
-    - slashes
-    - arguments
-
-Rails/FindBy:
-  Description: 'Prefer find_by over where.first.'
-  StyleGuide: 'https://github.com/rubocop-hq/rails-style-guide#find_by'
-  Enabled: true
-  VersionAdded: '0.30'
-  Include:
-    - app/models/**/*.rb
-
-Rails/FindEach:
-  Description: 'Prefer all.find_each over all.find.'
-  StyleGuide: 'https://github.com/rubocop-hq/rails-style-guide#find-each'
-  Enabled: true
-  VersionAdded: '0.30'
-  Include:
-    - app/models/**/*.rb
-
-Rails/HasAndBelongsToMany:
-  Description: 'Prefer has_many :through to has_and_belongs_to_many.'
-  StyleGuide: 'https://github.com/rubocop-hq/rails-style-guide#has-many-through'
-  Enabled: true
-  VersionAdded: '0.12'
-  Include:
-    - app/models/**/*.rb
-
-Rails/HasManyOrHasOneDependent:
-  Description: 'Define the dependent option to the has_many and has_one associations.'
-  StyleGuide: 'https://github.com/rubocop-hq/rails-style-guide#has_many-has_one-dependent-option'
-  Enabled: true
-  VersionAdded: '0.50'
-  Include:
-    - app/models/**/*.rb
-
-Rails/HttpPositionalArguments:
-  Description: 'Use keyword arguments instead of positional arguments in http method calls.'
-  Enabled: true
-  VersionAdded: '0.44'
-  Include:
-    - 'spec/**/*'
-    - 'test/**/*'
-
-Rails/HttpStatus:
-  Description: 'Enforces use of symbolic or numeric value to define HTTP status.'
-  Enabled: true
-  VersionAdded: '0.54'
-  EnforcedStyle: symbolic
-  SupportedStyles:
-    - numeric
-    - symbolic
-
-Rails/IgnoredSkipActionFilterOption:
-  Description: 'Checks that `if` and `only` (or `except`) are not used together as options of `skip_*` action filter.'
-  Reference: 'https://api.rubyonrails.org/classes/AbstractController/Callbacks/ClassMethods.html#method-i-_normalize_callback_options'
-  Enabled: true
-  VersionAdded: '0.63'
-  Include:
-    - app/controllers/**/*.rb
-
-Rails/InverseOf:
-  Description: 'Checks for associations where the inverse cannot be determined automatically.'
-  Enabled: true
-  VersionAdded: '0.52'
-  Include:
-    - app/models/**/*.rb
-
-Rails/LexicallyScopedActionFilter:
-  Description: "Checks that methods specified in the filter's `only` or `except` options are explicitly defined in the controller."
-  StyleGuide: 'https://github.com/rubocop-hq/rails-style-guide#lexically-scoped-action-filter'
-  Enabled: true
-  Safe: false
-  VersionAdded: '0.52'
-  Include:
-    - app/controllers/**/*.rb
-
-Rails/LinkToBlank:
-  Description: 'Checks that `link_to` with a `target: "_blank"` have a `rel: "noopener"` option passed to them.'
-  Reference:
-    - https://mathiasbynens.github.io/rel-noopener/
-    - https://html.spec.whatwg.org/multipage/links.html#link-type-noopener
-    - https://html.spec.whatwg.org/multipage/links.html#link-type-noreferrer
-  Enabled: true
-  VersionAdded: '0.62'
-
-Rails/NotNullColumn:
-  Description: 'Do not add a NOT NULL column without a default value'
-  Enabled: true
-  VersionAdded: '0.43'
-  Include:
-    - db/migrate/*.rb
-
-Rails/Output:
-  Description: 'Checks for calls to puts, print, etc.'
-  Enabled: true
-  VersionAdded: '0.15'
-  VersionChanged: '0.19'
-  Include:
-    - app/**/*.rb
-    - config/**/*.rb
-    - db/**/*.rb
-    - lib/**/*.rb
-
-Rails/OutputSafety:
-  Description: 'The use of `html_safe` or `raw` may be a security risk.'
-  Enabled: true
-  VersionAdded: '0.41'
-
-Rails/PluralizationGrammar:
-  Description: 'Checks for incorrect grammar when using methods like `3.day.ago`.'
-  Enabled: true
-  VersionAdded: '0.35'
-
-Rails/Presence:
-  Description: 'Checks code that can be written more easily using `Object#presence` defined by Active Support.'
-  Enabled: true
-  VersionAdded: '0.52'
-
-Rails/Present:
-  Description: 'Enforces use of `present?`.'
-  Enabled: true
-  VersionAdded: '0.48'
-  VersionChanged: '0.67'
-  # Convert usages of `!nil? && !empty?` to `present?`
-  NotNilAndNotEmpty: true
-  # Convert usages of `!blank?` to `present?`
-  NotBlank: true
-  # Convert usages of `unless blank?` to `if present?`
-  UnlessBlank: true
-
-Rails/ReadWriteAttribute:
-  Description: >-
-                 Checks for read_attribute(:attr) and
-                 write_attribute(:attr, val).
-  StyleGuide: 'https://github.com/rubocop-hq/rails-style-guide#read-attribute'
-  Enabled: true
-  VersionAdded: '0.20'
-  VersionChanged: '0.29'
-  Include:
-    - app/models/**/*.rb
-
-Rails/RedundantAllowNil:
-  Description: >-
-                 Finds redundant use of `allow_nil` when `allow_blank` is set to
-                 certain values in model validations.
-  Enabled: true
-  VersionAdded: '0.67'
-  Include:
-    - app/models/**/*.rb
-
-Rails/RedundantReceiverInWithOptions:
-  Description: 'Checks for redundant receiver in `with_options`.'
-  Enabled: true
-  VersionAdded: '0.52'
-
-Rails/ReflectionClassName:
-  Description: 'Use a string for `class_name` option value in the definition of a reflection.'
-  Enabled: true
-  VersionAdded: '0.64'
-
-Rails/RefuteMethods:
-  Description: 'Use `assert_not` methods instead of `refute` methods.'
-  Enabled: true
-  VersionAdded: '0.56'
-  Include:
-    - '**/test/**/*'
-
-Rails/RelativeDateConstant:
-  Description: 'Do not assign relative date to constants.'
-  Enabled: true
-  VersionAdded: '0.48'
-  VersionChanged: '0.59'
-  AutoCorrect: false
-
-Rails/RequestReferer:
-  Description: 'Use consistent syntax for request.referer.'
-  Enabled: true
-  VersionAdded: '0.41'
-  EnforcedStyle: referer
-  SupportedStyles:
-    - referer
-    - referrer
-
-Rails/ReversibleMigration:
-  Description: 'Checks whether the change method of the migration file is reversible.'
-  StyleGuide: 'https://github.com/rubocop-hq/rails-style-guide#reversible-migration'
-  Reference: 'https://api.rubyonrails.org/classes/ActiveRecord/Migration/CommandRecorder.html'
-  Enabled: true
-  VersionAdded: '0.47'
-  Include:
-    - db/migrate/*.rb
-
-Rails/SafeNavigation:
-  Description: "Use Ruby's safe navigation operator (`&.`) instead of `try!`"
-  Enabled: true
-  VersionAdded: '0.43'
-  # This will convert usages of `try` to use safe navigation as well as `try!`.
-  # `try` and `try!` work slightly differently. `try!` and safe navigation will
-  # both raise a `NoMethodError` if the receiver of the method call does not
-  # implement the intended method. `try` will not raise an exception for this.
-  ConvertTry: false
-
-Rails/SaveBang:
-  Description: 'Identifies possible cases where Active Record save! or related should be used.'
-  StyleGuide: 'https://github.com/rubocop-hq/rails-style-guide#save-bang'
-  Enabled: false
-  VersionAdded: '0.42'
-  VersionChanged: '0.59'
-  AllowImplicitReturn: true
-  AllowedReceivers: []
-
-Rails/ScopeArgs:
-  Description: 'Checks the arguments of ActiveRecord scopes.'
-  Enabled: true
-  VersionAdded: '0.19'
-  Include:
-    - app/models/**/*.rb
-
-Rails/SkipsModelValidations:
-  Description: >-
-                 Use methods that skips model validations with caution.
-                 See reference for more information.
-  Reference: 'https://guides.rubyonrails.org/active_record_validations.html#skipping-validations'
-  Enabled: true
-  VersionAdded: '0.47'
-  VersionChanged: '0.60'
-  Blacklist:
-    - decrement!
-    - decrement_counter
-    - increment!
-    - increment_counter
-    - toggle!
-    - touch
-    - update_all
-    - update_attribute
-    - update_column
-    - update_columns
-    - update_counters
-  Whitelist: []
-
-Rails/TimeZone:
-  Description: 'Checks the correct usage of time zone aware methods.'
-  StyleGuide: 'https://github.com/rubocop-hq/rails-style-guide#time'
-  Reference: 'http://danilenko.org/2012/7/6/rails_timezones'
-  Enabled: true
-  Safe: false
-  VersionAdded: '0.30'
-  VersionChanged: '0.68'
-  # The value `strict` means that `Time` should be used with `zone`.
-  # The value `flexible` allows usage of `in_time_zone` instead of `zone`.
-  EnforcedStyle: flexible
-  SupportedStyles:
-    - strict
-    - flexible
-
-Rails/UniqBeforePluck:
-  Description: 'Prefer the use of uniq or distinct before pluck.'
-  Enabled: true
-  VersionAdded: '0.40'
-  VersionChanged: '0.47'
-  EnforcedStyle: conservative
-  SupportedStyles:
-    - conservative
-    - aggressive
-  AutoCorrect: false
-
-Rails/UnknownEnv:
-  Description: 'Use correct environment name.'
-  Enabled: true
-  VersionAdded: '0.51'
-  Environments:
-    - development
-    - test
-    - production
-
-Rails/Validation:
-  Description: 'Use validates :attribute, hash of validations.'
-  Enabled: true
-  VersionAdded: '0.9'
-  VersionChanged: '0.41'
-  Include:
-    - app/models/**/*.rb
-
 #################### Security ##############################
 
 Security/Eval:
@@ -2590,7 +2137,7 @@ Style/AccessModifierDeclarations:
 
 Style/Alias:
   Description: 'Use alias instead of alias_method.'
-  StyleGuide: '#alias-method'
+  StyleGuide: '#alias-method-lexically'
   Enabled: true
   VersionAdded: '0.9'
   VersionChanged: '0.36'
@@ -3012,6 +2559,11 @@ Style/DocumentationMethod:
     - 'test/**/*'
   RequireForNonPublicMethods: false
 
+Style/DoubleCopDisableDirective:
+  Description: 'Checks for double rubocop:disable comments on a single line.'
+  Enabled: true
+  VersionAdded: '0.73'
+
 Style/DoubleNegation:
   Description: 'Checks for uses of double negation (!!).'
   StyleGuide: '#no-bang-bang'
@@ -3096,7 +2648,7 @@ Style/EvalWithLocation:
   VersionAdded: '0.52'
 
 Style/EvenOdd:
-  Description: 'Favor the use of Integer#even? && Integer#odd?'
+  Description: 'Favor the use of `Integer#even?` && `Integer#odd?`.'
   StyleGuide: '#predicate-methods'
   Enabled: true
   VersionAdded: '0.12'
@@ -3106,6 +2658,19 @@ Style/ExpandPathArguments:
   Description: "Use `expand_path(__dir__)` instead of `expand_path('..', __FILE__)`."
   Enabled: true
   VersionAdded: '0.53'
+
+Style/FloatDivision:
+  Description: 'For performing float division, coerce one side only.'
+  StyleGuide: '#float-division'
+  Reference: 'https://github.com/rubocop-hq/ruby-style-guide/issues/628'
+  Enabled: true
+  VersionAdded: '0.72'
+  EnforcedStyle: single_coerce
+  SupportedStyles:
+    - left_coerce
+    - right_coerce
+    - single_coerce
+    - fdiv
 
 Style/For:
   Description: 'Checks use of for or each in multiline loops.'
@@ -3172,7 +2737,7 @@ Style/GlobalVars:
   AllowedVariables: []
 
 Style/GuardClause:
-  Description: 'Check for conditionals that can be replaced with guard clauses'
+  Description: 'Check for conditionals that can be replaced with guard clauses.'
   StyleGuide: '#no-nested-conditionals'
   Enabled: true
   VersionAdded: '0.20'
@@ -3215,6 +2780,7 @@ Style/IdenticalConditionalBranches:
 Style/IfInsideElse:
   Description: 'Finds if nodes inside else, which can be converted to elsif.'
   Enabled: true
+  AllowIfModifier: false
   VersionAdded: '0.36'
 
 Style/IfUnlessModifier:
@@ -3380,7 +2946,7 @@ Style/MethodMissingSuper:
 Style/MinMax:
   Description: >-
                  Use `Enumerable#minmax` instead of `Enumerable#min`
-                 and `Enumerable#max` in conjunction.'
+                 and `Enumerable#max` in conjunction.
   Enabled: true
   VersionAdded: '0.50'
 
@@ -3390,7 +2956,7 @@ Style/MissingElse:
                 If enabled, it is recommended that
                 Style/UnlessElse and Style/EmptyElse be enabled.
                 This will conflict with Style/EmptyElse if
-                Style/EmptyElse is configured to style "both"
+                Style/EmptyElse is configured to style "both".
   Enabled: false
   VersionAdded: '0.30'
   VersionChanged: '0.38'
@@ -3483,6 +3049,12 @@ Style/MultilineTernaryOperator:
   StyleGuide: '#no-multiline-ternary'
   Enabled: true
   VersionAdded: '0.9'
+
+Style/MultilineWhenThen:
+  Description: 'Do not use then for multi-line when statement.'
+  StyleGuide: '#no-then'
+  Enabled: true
+  VersionAdded: '0.73'
 
 Style/MultipleComparison:
   Description: >-
@@ -3702,7 +3274,7 @@ Style/OptionHash:
 Style/OptionalArguments:
   Description: >-
                  Checks for optional arguments that do not appear at the end
-                 of the argument list
+                 of the argument list.
   StyleGuide: '#optional-arguments'
   Enabled: true
   VersionAdded: '0.33'
@@ -3734,7 +3306,7 @@ Style/ParenthesesAroundCondition:
   AllowInMultilineConditions: false
 
 Style/PercentLiteralDelimiters:
-  Description: 'Use `%`-literal delimiters consistently'
+  Description: 'Use `%`-literal delimiters consistently.'
   StyleGuide: '#percent-literal-braces'
   Enabled: true
   VersionAdded: '0.19'
@@ -4266,7 +3838,7 @@ Style/UnneededSort:
 Style/UnpackFirst:
   Description: >-
                  Checks for accessing the first element of `String#unpack`
-                 instead of using `unpack1`
+                 instead of using `unpack1`.
   Enabled: true
   VersionAdded: '0.54'
 
@@ -4317,7 +3889,7 @@ Style/WordArray:
   # whose element count is greater than or equal to `MinSize`.
   MinSize: 2
   # The regular expression `WordRegex` decides what is considered a word.
-  WordRegex: !ruby/regexp '/\A[\p{Word}\n\t]+\z/'
+  WordRegex: !ruby/regexp '/\A(?:\p{Word}|\p{Word}-\p{Word}|\n|\t)+\z/'
 
 Style/YodaCondition:
   Description: 'Forbid or enforce yoda conditions.'

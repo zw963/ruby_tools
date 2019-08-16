@@ -4,8 +4,12 @@ module RuboCop
   module Cop
     # rubocop:disable Metrics/LineLength
     module Layout
-      # This cop checks the indentation of the first argument in a method call
-      # or definition.
+      # This cop checks the indentation of the first argument in a method call.
+      # Arguments after the first one are checked by Layout/AlignArguments,
+      # not by this cop.
+      #
+      # For indenting the first parameter of method *definitions*, check out
+      # Layout/IndentFirstParameter.
       #
       # @example
       #
@@ -200,7 +204,7 @@ module RuboCop
           node.source_range.begin_pos > parent.source_range.begin_pos
         end
 
-        def_node_matcher :eligible_method_call?, <<-PATTERN
+        def_node_matcher :eligible_method_call?, <<~PATTERN
           (send _ !:[]= ...)
         PATTERN
 

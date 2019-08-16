@@ -29,16 +29,16 @@ module RuboCop
           begin_pos: offense.location.begin_pos,
           end_pos: offense.location.end_pos
         },
-        message: message(offense),
+        message:  message(offense),
         cop_name: offense.cop_name,
-        status: :uncorrected
+        status:   :uncorrected
       }
     end
 
     def message(offense)
       # JSON.dump will fail if the offense message contains text which is not
       # valid UTF-8
-      offense.message.scrub
+      offense.message.dup.force_encoding(::Encoding::UTF_8).scrub
     end
 
     # Restore an offense object loaded from a JSON file.

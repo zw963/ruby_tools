@@ -348,7 +348,8 @@ module RuboCop
         end
 
         def ambigious_literal?(node)
-          splat?(node) || ternary_if?(node) || regexp_slash_literal?(node)
+          splat?(node) || ternary_if?(node) || regexp_slash_literal?(node) ||
+            unary_literal?(node)
         end
 
         def splat?(node)
@@ -369,6 +370,11 @@ module RuboCop
 
         def regexp_slash_literal?(node)
           node.regexp_type? && node.loc.begin.source == '/'
+        end
+
+        def unary_literal?(node)
+          node.numeric_type? && node.sign? ||
+            node.parent&.send_type? && node.parent&.unary_operation?
         end
 
         def assigned_before?(node, target)
