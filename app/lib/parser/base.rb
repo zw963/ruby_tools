@@ -114,6 +114,10 @@ module Parser
     attr_reader :static_env
     attr_reader :source_buffer
     attr_reader :context
+    attr_reader :max_numparam_stack
+    attr_reader :current_arg_stack
+    attr_reader :pattern_variables
+    attr_reader :pattern_hash_keys
 
     ##
     # @param [Parser::Builders::Default] builder The AST builder to use.
@@ -125,6 +129,18 @@ module Parser
 
       # Stack that holds current parsing context
       @context = Context.new
+
+      # Maximum numbered parameters stack
+      @max_numparam_stack = MaxNumparamStack.new
+
+      # Current argument names stack
+      @current_arg_stack = CurrentArgStack.new
+
+      # Stack of set of variables used in the current pattern
+      @pattern_variables = VariablesStack.new
+
+      # Stack of set of keys used in the current hash in pattern matchinig
+      @pattern_hash_keys = VariablesStack.new
 
       @lexer = Lexer.new(version)
       @lexer.diagnostics = @diagnostics
@@ -153,6 +169,9 @@ module Parser
       @lexer.reset
       @static_env.reset
       @context.reset
+      @current_arg_stack.reset
+      @pattern_variables.reset
+      @pattern_hash_keys.reset
 
       self
     end

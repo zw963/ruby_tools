@@ -95,7 +95,7 @@ class Parser::Lexer
   attr_accessor :static_env
   attr_accessor :force_utf32
 
-  attr_accessor :cond, :cmdarg, :in_kwarg, :context
+  attr_accessor :cond, :cmdarg, :in_kwarg, :context, :command_start
 
   attr_accessor :tokens, :comments
 
@@ -169,7 +169,7 @@ class Parser::Lexer
     # If the lexer is in `command state' (aka expr_value)
     # at the entry to #advance, it will transition to expr_cmdarg
     # instead of expr_arg at certain points.
-    @command_state = false
+    @command_start = true
 
     # True at the end of "def foo a:"
     @in_kwarg      = false
@@ -277,8 +277,8 @@ class Parser::Lexer
     pe = @source_pts.size + 2
     p, eof = @p, pe
 
-    @command_state = (@cs == klass.lex_en_expr_value ||
-                      @cs == klass.lex_en_line_begin)
+    cmd_state = @command_start
+    @command_start = false
 
     %% write exec;
     # %
@@ -348,8 +348,8 @@ class Parser::Lexer
     end
   end
 
-  def arg_or_cmdarg
-    if @command_state
+  def arg_or_cmdarg(cmd_state)
+    if cmd_state
       self.class.lex_en_expr_cmdarg
     else
       self.class.lex_en_expr_arg
@@ -447,7 +447,7 @@ class Parser::Lexer
     '=>'  => :tASSOC,   '::'  => :tCOLON2,  '===' => :tEQQ,
     '<=>' => :tCMP,     '[]'  => :tAREF,    '[]=' => :tASET,
     '{'   => :tLCURLY,  '}'   => :tRCURLY,  '`'   => :tBACK_REF2,
-    '!@'  => :tBANG,    '&.'  => :tANDDOT,  '.:'  => :tMETHREF
+    '!@'  => :tBANG,    '&.'  => :tANDDOT,
   }
 
   PUNCTUATION_BEGIN = {
@@ -705,6 +705,14 @@ class Parser::Lexer
     diagnostic :fatal, :invalid_escape
   }
 
+  action read_post_meta_or_ctrl_char {
+    @escape = @source_buffer.slice(p - 1).chr
+
+    if @version >= 27 && ((0..8).include?(@escape.ord) || (14..31).include?(@escape.ord))
+      diagnostic :fatal, :invalid_escape
+    end
+  }
+
   action slash_c_char {
     @escape = encode_escape(@escape[0].ord & 0x9f)
   }
@@ -715,13 +723,13 @@ class Parser::Lexer
 
   maybe_escaped_char = (
         '\\' c_any      %unescape_char
-    | ( c_any - [\\] )  % { @escape = @source_buffer.slice(p - 1).chr }
+    | ( c_any - [\\] )  %read_post_meta_or_ctrl_char
   );
 
   maybe_escaped_ctrl_char = ( # why?!
         '\\' c_any      %unescape_char %slash_c_char
     |   '?'             % { @escape = "\x7f" }
-    | ( c_any - [\\?] ) % { @escape = @source_buffer.slice(p - 1).chr } %slash_c_char
+    | ( c_any - [\\?] ) %read_post_meta_or_ctrl_char %slash_c_char
   );
 
   escape = (
@@ -1011,6 +1019,20 @@ class Parser::Lexer
     fcall expr_variable;
   }
 
+  # Special case for Ruby > 2.7
+  # If interpolated instance/class variable starts with a digit we parse it as a plain substring
+  # However, "#$1" is still a regular interpolation
+  interp_digit_var = '#' ('@' | '@@') digit c_alpha*;
+
+  action extend_interp_digit_var {
+    if @version >= 27
+      literal.extend_string(tok, @ts, @te)
+    else
+      message = tok.start_with?('#@@') ? :cvar_name : :ivar_name
+      diagnostic :error, message, { :name => tok(@ts + 1, @te) }, range(@ts + 1, @te)
+    end
+  }
+
   # Interpolations with code blocks must match nested curly braces, as
   # interpolation ending is ambiguous with a block ending. So, every
   # opening and closing brace should be matched with e_[lr]brace rules,
@@ -1056,6 +1078,8 @@ class Parser::Lexer
         fbreak;
       end
     end
+
+    @paren_nest -= 1
   };
 
   action extend_interp_code {
@@ -1071,6 +1095,7 @@ class Parser::Lexer
     end
 
     current_literal.start_interp_brace
+    @command_start = true
     fnext expr_value;
     fbreak;
   }
@@ -1079,60 +1104,64 @@ class Parser::Lexer
   # above.
 
   interp_words := |*
-      interp_code => extend_interp_code;
-      interp_var  => extend_interp_var;
-      e_bs escape => extend_string_escaped;
-      c_space+    => extend_string_space;
-      c_eol       => extend_string_eol;
-      c_any       => extend_string;
+      interp_code      => extend_interp_code;
+      interp_digit_var => extend_interp_digit_var;
+      interp_var       => extend_interp_var;
+      e_bs escape      => extend_string_escaped;
+      c_space+         => extend_string_space;
+      c_eol            => extend_string_eol;
+      c_any            => extend_string;
   *|;
 
   interp_string := |*
-      interp_code => extend_interp_code;
-      interp_var  => extend_interp_var;
-      e_bs escape => extend_string_escaped;
-      c_eol       => extend_string_eol;
-      c_any       => extend_string;
+      interp_code      => extend_interp_code;
+      interp_digit_var => extend_interp_digit_var;
+      interp_var       => extend_interp_var;
+      e_bs escape      => extend_string_escaped;
+      c_eol            => extend_string_eol;
+      c_any            => extend_string;
   *|;
 
   plain_words := |*
-      e_bs c_any  => extend_string_escaped;
-      c_space+    => extend_string_space;
-      c_eol       => extend_string_eol;
-      c_any       => extend_string;
+      e_bs c_any       => extend_string_escaped;
+      c_space+         => extend_string_space;
+      c_eol            => extend_string_eol;
+      c_any            => extend_string;
   *|;
 
   plain_string := |*
-      '\\' c_nl   => extend_string_eol;
-      e_bs c_any  => extend_string_escaped;
-      c_eol       => extend_string_eol;
-      c_any       => extend_string;
+      '\\' c_nl        => extend_string_eol;
+      e_bs c_any       => extend_string_escaped;
+      c_eol            => extend_string_eol;
+      c_any            => extend_string;
   *|;
 
   interp_backslash_delimited := |*
-      interp_code => extend_interp_code;
-      interp_var  => extend_interp_var;
-      c_eol       => extend_string_eol;
-      c_any       => extend_string;
+      interp_code      => extend_interp_code;
+      interp_digit_var => extend_interp_digit_var;
+      interp_var       => extend_interp_var;
+      c_eol            => extend_string_eol;
+      c_any            => extend_string;
   *|;
 
   plain_backslash_delimited := |*
-      c_eol       => extend_string_eol;
-      c_any       => extend_string;
+      c_eol            => extend_string_eol;
+      c_any            => extend_string;
   *|;
 
   interp_backslash_delimited_words := |*
-      interp_code => extend_interp_code;
-      interp_var  => extend_interp_var;
-      c_space+    => extend_string_space;
-      c_eol       => extend_string_eol;
-      c_any       => extend_string;
+      interp_code      => extend_interp_code;
+      interp_digit_var => extend_interp_digit_var;
+      interp_var       => extend_interp_var;
+      c_space+         => extend_string_space;
+      c_eol            => extend_string_eol;
+      c_any            => extend_string;
   *|;
 
   plain_backslash_delimited_words := |*
-      c_space+    => extend_string_space;
-      c_eol       => extend_string_eol;
-      c_any       => extend_string;
+      c_space+         => extend_string_space;
+      c_eol            => extend_string_eol;
+      c_any            => extend_string;
   *|;
 
   regexp_modifiers := |*
@@ -1248,6 +1277,12 @@ class Parser::Lexer
 
   e_lbrack = '[' % {
     @cond.push(false); @cmdarg.push(false)
+
+    @paren_nest += 1
+  };
+
+  e_rbrack = ']' % {
+    @paren_nest -= 1
   };
 
   # Ruby 1.9 lambdas require parentheses counting in order to
@@ -1257,6 +1292,10 @@ class Parser::Lexer
     @cond.push(false); @cmdarg.push(false)
 
     @paren_nest += 1
+
+    if version?(18)
+      @command_start = true
+    end
   };
 
   e_rparen = ')' % {
@@ -1270,7 +1309,7 @@ class Parser::Lexer
     if !@static_env.nil? && @static_env.declared?(tok)
       fnext expr_endfn; fbreak;
     else
-      fnext *arg_or_cmdarg; fbreak;
+      fnext *arg_or_cmdarg(cmd_state); fbreak;
     end
   }
 
@@ -1397,15 +1436,15 @@ class Parser::Lexer
   expr_dot := |*
       constant
       => { emit(:tCONSTANT)
-           fnext *arg_or_cmdarg; fbreak; };
+           fnext *arg_or_cmdarg(cmd_state); fbreak; };
 
       call_or_var
       => { emit(:tIDENTIFIER)
-           fnext *arg_or_cmdarg; fbreak; };
+           fnext *arg_or_cmdarg(cmd_state); fbreak; };
 
       bareword ambiguous_fid_suffix
       => { emit(:tFID, tok(@ts, tm), @ts, tm)
-           fnext *arg_or_cmdarg; p = tm - 1; fbreak; };
+           fnext *arg_or_cmdarg(cmd_state); p = tm - 1; fbreak; };
 
       # See the comment in `expr_fname`.
       operator_fname      |
@@ -1465,6 +1504,8 @@ class Parser::Lexer
         else
           emit(:tLCURLY, '{'.freeze, @te - 1, @te)
         end
+        @command_start = true
+        @paren_nest += 1
         fnext expr_value; fbreak;
       };
 
@@ -1625,6 +1666,8 @@ class Parser::Lexer
         else
           emit(:tLBRACE_ARG, '{'.freeze)
         end
+        @paren_nest += 1
+        @command_start = true
         fnext expr_value; fbreak;
       };
 
@@ -1733,7 +1776,11 @@ class Parser::Lexer
         type        =  $3.empty? ? '<<"'.freeze : ('<<'.freeze + $3)
         delimiter   =  $4
 
-        if @version >= 24
+        if @version >= 27
+          if delimiter.count("\n") > 0 || delimiter.count("\r") > 0
+            diagnostic :error, :unterminated_heredoc_id, nil, range(@ts, @ts + 1)
+          end
+        elsif @version >= 24
           if delimiter.count("\n") > 0
             if delimiter.end_with?("\n")
               diagnostic :warning, :heredoc_id_ends_with_nl, nil, range(@ts, @ts + 1)
@@ -1754,6 +1801,21 @@ class Parser::Lexer
           @herebody_s ||= new_herebody_s
           p = @herebody_s - 1
         end
+      };
+
+      # Escaped unterminated heredoc start
+      # <<'END  | <<"END  | <<`END  |
+      # <<-'END | <<-"END | <<-`END |
+      # <<~'END | <<~"END | <<~`END
+      #
+      # If the heredoc is terminated the rule above should handle it
+      '<<' [~\-]?
+        ('"' (any - c_nl - '"')*
+        |"'" (any - c_nl - "'")*
+        |"`" (any - c_nl - "`")
+        )
+      => {
+        diagnostic :error, :unterminated_heredoc_id, nil, range(@ts, @ts + 1)
       };
 
       #
@@ -1793,6 +1855,20 @@ class Parser::Lexer
             operator_fname | operator_arithmetic | operator_rest )
       => {
         emit(:tSYMBOL, tok(@ts + 1), @ts)
+        fnext expr_end; fbreak;
+      };
+
+      ':' ( '@'  %{ tm = p - 1; diag_msg = :ivar_name }
+          | '@@' %{ tm = p - 2; diag_msg = :cvar_name }
+          ) [0-9]*
+      => {
+        if @version >= 27
+          diagnostic :error, diag_msg, { name: tok(tm, @te) }, range(tm, @te)
+        else
+          emit(:tCOLON, tok(@ts, @ts + 1), @ts, @ts + 1)
+          p = @ts
+        end
+
         fnext expr_end; fbreak;
       };
 
@@ -1840,6 +1916,24 @@ class Parser::Lexer
       };
 
       #
+      # AMBIGUOUS EMPTY BLOCK ARGUMENTS
+      #
+
+      # Ruby >= 2.7 emits it as two tPIPE terminals
+      # while Ruby < 2.7 as a single tOROP (like in `a || b`)
+      '||'
+      => {
+        if @version >= 27
+          emit(:tPIPE, tok(@ts, @ts + 1), @ts, @ts + 1)
+          fhold;
+          fnext expr_beg; fbreak;
+        else
+          p -= 2
+          fgoto expr_end;
+        end
+      };
+
+      #
       # KEYWORDS AND PUNCTUATION
       #
 
@@ -1848,10 +1942,12 @@ class Parser::Lexer
       => {
         if @lambda_stack.last == @paren_nest
           @lambda_stack.pop
+          @command_start = true
           emit(:tLAMBEG, '{'.freeze)
         else
           emit(:tLBRACE, '{'.freeze)
         end
+        @paren_nest += 1
         fbreak;
       };
 
@@ -1880,6 +1976,7 @@ class Parser::Lexer
       # if a: Statement if.
       keyword_modifier
       => { emit_table(KEYWORDS_BEGIN)
+           @command_start = true
            fnext expr_value; fbreak; };
 
       #
@@ -1900,7 +1997,7 @@ class Parser::Lexer
           if !@static_env.nil? && @static_env.declared?(ident)
             fnext expr_end;
           else
-            fnext *arg_or_cmdarg;
+            fnext *arg_or_cmdarg(cmd_state);
           end
         else
           emit(:tLABEL, tok(@ts, @te - 2), @ts, @te - 1)
@@ -2069,6 +2166,10 @@ class Parser::Lexer
             emit_do
           end
         end
+        if tok == '{'.freeze
+          @paren_nest += 1
+        end
+        @command_start = true
 
         fnext expr_value; fbreak;
       };
@@ -2094,6 +2195,7 @@ class Parser::Lexer
       # elsif b:c: elsif b(:c)
       keyword_with_value
       => { emit_table(KEYWORDS)
+           @command_start = true
            fnext expr_value; fbreak; };
 
       keyword_with_mid
@@ -2117,7 +2219,7 @@ class Parser::Lexer
           emit(:tIDENTIFIER)
 
           unless !@static_env.nil? && @static_env.declared?(tok)
-            fnext *arg_or_cmdarg;
+            fnext *arg_or_cmdarg(cmd_state);
           end
         else
           emit(:k__ENCODING__, '__ENCODING__'.freeze)
@@ -2228,7 +2330,7 @@ class Parser::Lexer
 
       constant
       => { emit(:tCONSTANT)
-           fnext *arg_or_cmdarg; fbreak; };
+           fnext *arg_or_cmdarg(cmd_state); fbreak; };
 
       constant ambiguous_const_suffix
       => { emit(:tCONSTANT, tok(@ts, tm), @ts, tm)
@@ -2241,13 +2343,7 @@ class Parser::Lexer
       # METHOD CALLS
       #
 
-      '.:' w_space+
-      => { emit(:tDOT, '.', @ts, @ts + 1)
-           emit(:tCOLON, ':', @ts + 1, @ts + 2)
-           p = p - tok.length + 2
-           fnext expr_dot; fbreak; };
-
-      '.:' | '.' | '&.' | '::'
+      '.' | '&.' | '::'
       => { emit_table(PUNCTUATION)
            fnext expr_dot; fbreak; };
 
@@ -2290,7 +2386,7 @@ class Parser::Lexer
       => { emit_table(PUNCTUATION)
            fnext expr_beg; fbreak; };
 
-      e_rbrace | e_rparen | ']'
+      e_rbrace | e_rparen | e_rbrack
       => {
         emit_table(PUNCTUATION)
 
@@ -2327,6 +2423,17 @@ class Parser::Lexer
       => { emit(:tLBRACK2, '['.freeze)
            fnext expr_beg; fbreak; };
 
+      '...' c_nl
+      => {
+        if @paren_nest == 0
+          diagnostic :warning, :triple_dot_at_eol, nil, range(@ts, @te - 1)
+        end
+
+        emit(:tDOT3, '...'.freeze, @ts, @te - 1)
+        fhold;
+        fnext expr_beg; fbreak;
+      };
+
       punctuation_end
       => { emit_table(PUNCTUATION)
            fnext expr_beg; fbreak; };
@@ -2342,6 +2449,7 @@ class Parser::Lexer
 
       ';'
       => { emit(:tSEMI, ';'.freeze)
+           @command_start = true
            fnext expr_value; fbreak; };
 
       '\\' c_line {
@@ -2360,7 +2468,25 @@ class Parser::Lexer
   leading_dot := |*
       # Insane leading dots:
       # a #comment
+      #  # post-2.7 comment
       #  .b: a.b
+
+      # Here we use '\n' instead of w_newline to not modify @newline_s
+      # and eventually properly emit tNL
+      (w_space_comment '\n')+
+      => {
+        if @version < 27
+          # Ruby before 2.7 doesn't support comments before leading dot.
+          # If a line after "a" starts with a comment then "a" is a self-contained statement.
+          # So in that case we emit a special tNL token and start reading the
+          # next line as a separate statement.
+          #
+          # Note: block comments before leading dot are not supported on any version of Ruby.
+          emit(:tNL, nil, @newline_s, @newline_s + 1)
+          fhold; fnext line_begin; fbreak;
+        end
+      };
+
       c_space* %{ tm = p } ('.' | '&.')
       => { p = tm - 1; fgoto expr_end; };
 
@@ -2400,7 +2526,7 @@ class Parser::Lexer
       => { p = pe - 3 };
 
       c_any
-      => { fhold; fgoto expr_value; };
+      => { cmd_state = true; fhold; fgoto expr_value; };
 
       c_eof => do_eof;
   *|;

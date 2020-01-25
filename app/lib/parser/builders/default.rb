@@ -80,6 +80,21 @@ module Parser
       attr_accessor :emit_index
     end
 
+    class << self
+      ##
+      # AST compatibility attribute; causes a single non-mlhs
+      # block argument to be wrapped in s(:procarg0).
+      #
+      # If set to false (the default), block arguments `|a|` are emitted as
+      # `s(:args, s(:procarg0, :a))`
+      #
+      # If set to true, block arguments `|a|` are emitted as
+      # `s(:args, s(:procarg0, s(:arg, :a))`
+      #
+      # @return [Boolean]
+      attr_accessor :emit_arg_inside_procarg0
+    end
+
     @emit_index = false
 
     class << self
@@ -90,6 +105,7 @@ module Parser
         @emit_procarg0 = true
         @emit_encoding = true
         @emit_index = true
+        @emit_arg_inside_procarg0 = true
       end
     end
 
@@ -477,6 +493,11 @@ module Parser
         name, = *node
 
         if @parser.static_env.declared?(name)
+          if name.to_s == parser.current_arg_stack.top
+            diagnostic :error, :circular_argument_reference,
+                       { :var_name => name.to_s }, node.loc.expression
+          end
+
           node.updated(:lvar)
         else
           name, = *node
@@ -535,6 +556,9 @@ module Parser
 
       when :ident
         name, = *node
+
+        check_assignment_to_numparam(node)
+
         @parser.static_env.declare(name)
 
         node.updated(:lvasgn)
@@ -663,6 +687,14 @@ module Parser
         collection_map(begin_t, args, end_t))
     end
 
+    def numargs(max_numparam)
+      n(:numargs, [ max_numparam ], nil)
+    end
+
+    def forward_args(begin_t, dots_t, end_t)
+      n(:forward_args, [], collection_map(begin_t, token_map(dots_t), end_t))
+    end
+
     def arg(name_t)
       n(:arg, [ value(name_t).to_sym ],
         variable_map(name_t))
@@ -705,6 +737,11 @@ module Parser
       end
     end
 
+    def kwnilarg(dstar_t, nil_t)
+      n0(:kwnilarg,
+        arg_prefix_map(dstar_t, nil_t))
+    end
+
     def shadowarg(name_t)
       n(:shadowarg, [ value(name_t).to_sym ],
         variable_map(name_t))
@@ -717,7 +754,12 @@ module Parser
 
     def procarg0(arg)
       if self.class.emit_procarg0
-        arg.updated(:procarg0)
+        if arg.type == :arg && self.class.emit_arg_inside_procarg0
+          n(:procarg0, [ arg ],
+            Source::Map::Collection.new(nil, nil, arg.location.expression))
+        else
+          arg.updated(:procarg0)
+        end
       else
         arg
       end
@@ -802,6 +844,10 @@ module Parser
       end
     end
 
+    def forwarded_args(dots_t)
+      n(:forwarded_args, [], token_map(dots_t))
+    end
+
     def call_method(receiver, dot_t, selector_t,
                     lparen_t=nil, args=[], rparen_t=nil)
       type = call_type_for_dot(dot_t)
@@ -831,19 +877,26 @@ module Parser
       end
 
       last_arg = call_args.last
-      if last_arg && last_arg.type == :block_pass
+      if last_arg && (last_arg.type == :block_pass || last_arg.type == :forwarded_args)
         diagnostic :error, :block_and_blockarg, nil, last_arg.loc.expression, [loc(begin_t)]
       end
 
+      if args.type == :numargs
+        block_type = :numblock
+        args = args.children[0]
+      else
+        block_type = :block
+      end
+
       if [:send, :csend, :index, :super, :zsuper, :lambda].include?(method_call.type)
-        n(:block, [ method_call, args, body ],
+        n(block_type, [ method_call, args, body ],
           block_map(method_call.loc.expression, begin_t, end_t))
       else
         # Code like "return foo 1 do end" is reduced in a weird sequence.
         # Here, method_call is actually (return).
         actual_send, = *method_call
         block =
-          n(:block, [ actual_send, args, body ],
+          n(block_type, [ actual_send, args, body ],
             block_map(actual_send.loc.expression, begin_t, end_t))
 
         n(method_call.type, [ block ],
@@ -961,11 +1014,6 @@ module Parser
             send_map(nil, nil, not_t, begin_t, [receiver], end_t))
         end
       end
-    end
-
-    def method_ref(receiver, dot_t, selector_t)
-      n(:meth_ref, [ receiver, value(selector_t).to_sym ],
-          send_map(receiver, dot_t, selector_t, nil, [], nil))
     end
 
     #
@@ -1160,6 +1208,188 @@ module Parser
       end
     end
 
+    #
+    # PATTERN MATCHING
+    #
+
+    def case_match(case_t, expr, in_bodies, else_t, else_body, end_t)
+      n(:case_match, [ expr, *(in_bodies << else_body)],
+        condition_map(case_t, expr, nil, nil, else_t, else_body, end_t))
+    end
+
+    def in_match(lhs, in_t, rhs)
+      n(:in_match, [lhs, rhs],
+        binary_op_map(lhs, in_t, rhs))
+    end
+
+    def in_pattern(in_t, pattern, guard, then_t, body)
+      children = [pattern, guard, body]
+      n(:in_pattern, children,
+        keyword_map(in_t, then_t, children.compact, nil))
+    end
+
+    def if_guard(if_t, if_body)
+      n(:if_guard, [if_body], guard_map(if_t, if_body))
+    end
+
+    def unless_guard(unless_t, unless_body)
+      n(:unless_guard, [unless_body], guard_map(unless_t, unless_body))
+    end
+
+    def match_var(name_t)
+      name = value(name_t).to_sym
+
+      check_duplicate_pattern_variable(name, loc(name_t))
+      @parser.static_env.declare(name)
+
+      n(:match_var, [ name ],
+        variable_map(name_t))
+    end
+
+    def match_hash_var(name_t)
+      name = value(name_t).to_sym
+
+      expr_l = loc(name_t)
+      name_l = expr_l.adjust(end_pos: -1)
+
+      check_duplicate_pattern_variable(name, name_l)
+      @parser.static_env.declare(name)
+
+      n(:match_var, [ name ],
+        Source::Map::Variable.new(name_l, expr_l))
+    end
+
+    def match_hash_var_from_str(begin_t, strings, end_t)
+      if strings.length > 1
+        diagnostic :error, :pm_interp_in_var_name, nil, loc(begin_t).join(loc(end_t))
+      end
+
+      string = strings[0]
+
+      case string.type
+      when :str
+        # MRI supports plain strings in hash pattern matching
+        name, = *string
+        name_l = string.loc.expression
+
+        check_lvar_name(name, name_l)
+        check_duplicate_pattern_variable(name, name_l)
+
+        @parser.static_env.declare(name)
+
+        if (begin_l = string.loc.begin)
+          # exclude beginning of the string from the location of the variable
+          name_l = name_l.adjust(begin_pos: begin_l.length)
+        end
+
+        if (end_l = string.loc.end)
+          # exclude end of the string from the location of the variable
+          name_l = name_l.adjust(end_pos: -end_l.length)
+        end
+
+        expr_l = loc(begin_t).join(string.loc.expression).join(loc(end_t))
+        n(:match_var, [ name.to_sym ],
+          Source::Map::Variable.new(name_l, expr_l))
+      when :begin
+        match_hash_var_from_str(begin_t, string.children, end_t)
+      end
+    end
+
+    def match_rest(star_t, name_t = nil)
+      if name_t.nil?
+        n0(:match_rest,
+          unary_op_map(star_t))
+      else
+        name = match_var(name_t)
+        n(:match_rest, [ name ],
+          unary_op_map(star_t, name))
+      end
+    end
+
+    def hash_pattern(lbrace_t, kwargs, rbrace_t)
+      args = check_duplicate_args(kwargs)
+      n(:hash_pattern, args,
+        collection_map(lbrace_t, args, rbrace_t))
+    end
+
+    def array_pattern(lbrack_t, elements, rbrack_t)
+      trailing_comma = false
+
+      elements = elements.map do |element|
+        if element.type == :match_with_trailing_comma
+          trailing_comma = true
+          element.children.first
+        else
+          trailing_comma = false
+          element
+        end
+      end
+
+      node_type = trailing_comma ? :array_pattern_with_tail : :array_pattern
+      n(node_type, elements,
+        collection_map(lbrack_t, elements, rbrack_t))
+    end
+
+    def match_with_trailing_comma(match)
+      n(:match_with_trailing_comma, [ match ], nil)
+    end
+
+    def const_pattern(const, ldelim_t, pattern, rdelim_t)
+      n(:const_pattern, [const, pattern],
+        collection_map(ldelim_t, [pattern], rdelim_t))
+    end
+
+    def pin(pin_t, var)
+      n(:pin, [ var ],
+        send_unary_op_map(pin_t, var))
+    end
+
+    def match_alt(left, pipe_t, right)
+      source_map = binary_op_map(left, pipe_t, right)
+
+      n(:match_alt, [ left, right ],
+        source_map)
+    end
+
+    def match_as(value, assoc_t, as)
+      source_map = binary_op_map(value, assoc_t, as)
+
+      n(:match_as, [ value, as ],
+        source_map)
+    end
+
+    def match_nil_pattern(dstar_t, nil_t)
+      n0(:match_nil_pattern,
+        arg_prefix_map(dstar_t, nil_t))
+    end
+
+    def match_pair(label_type, label, value)
+      if label_type == :label
+        check_duplicate_pattern_key(label[0], label[1])
+        pair_keyword(label, value)
+      else
+        begin_t, parts, end_t = label
+
+        # quoted label like "label": value
+        if (var_name = static_string(parts))
+          loc = loc(begin_t).join(loc(end_t))
+          check_duplicate_pattern_key(var_name, loc)
+        end
+
+        pair_quoted(begin_t, parts, end_t, value)
+      end
+    end
+
+    def match_label(label_type, label)
+      if label_type == :label
+        match_hash_var(label)
+      else
+        # quoted label like "label": value
+        begin_t, strings, end_t = label
+        match_hash_var_from_str(begin_t, strings, end_t)
+      end
+    end
+
     private
 
     #
@@ -1215,23 +1445,50 @@ module Parser
         case this_arg.type
         when :arg, :optarg, :restarg, :blockarg,
              :kwarg, :kwoptarg, :kwrestarg,
-             :shadowarg, :procarg0
+             :shadowarg
 
-          this_name, = *this_arg
+          check_duplicate_arg(this_arg, map)
 
-          that_arg   = map[this_name]
-          that_name, = *that_arg
+        when :procarg0
 
-          if that_arg.nil?
-            map[this_name] = this_arg
-          elsif arg_name_collides?(this_name, that_name)
-            diagnostic :error, :duplicate_argument, nil,
-                       this_arg.loc.name, [ that_arg.loc.name ]
+          if this_arg.children[0].is_a?(Symbol)
+            # s(:procarg0, :a)
+            check_duplicate_arg(this_arg, map)
+          else
+            # s(:procarg0, s(:arg, :a), ...)
+            check_duplicate_args(this_arg.children, map)
           end
 
         when :mlhs
           check_duplicate_args(this_arg.children, map)
         end
+      end
+    end
+
+    def check_duplicate_arg(this_arg, map={})
+      this_name, = *this_arg
+
+      that_arg   = map[this_name]
+      that_name, = *that_arg
+
+      if that_arg.nil?
+        map[this_name] = this_arg
+      elsif arg_name_collides?(this_name, that_name)
+        diagnostic :error, :duplicate_argument, nil,
+                   this_arg.loc.name, [ that_arg.loc.name ]
+      end
+    end
+
+    def check_assignment_to_numparam(node)
+      name = node.children[0].to_s
+
+      assigning_to_numparam =
+        @parser.context.in_dynamic_block? &&
+        name =~ /\A_([1-9])\z/ &&
+        @parser.max_numparam_stack.has_numparams?
+
+      if assigning_to_numparam
+        diagnostic :error, :cant_assign_to_numparam, { :name => name }, node.loc.expression
       end
     end
 
@@ -1248,6 +1505,32 @@ module Parser
         this_name && this_name[0] != '_' &&
           this_name == that_name
       end
+    end
+
+    def check_lvar_name(name, loc)
+      if name =~ /\A[[[:lower:]]|_][[[:alnum:]]_]*\z/
+        # OK
+      else
+        diagnostic :error, :lvar_name, { name: name }, loc
+      end
+    end
+
+    def check_duplicate_pattern_variable(name, loc)
+      return if name.to_s.start_with?('_')
+
+      if @parser.pattern_variables.declared?(name)
+        diagnostic :error, :duplicate_variable_name, { name: name.to_s }, loc
+      end
+
+      @parser.pattern_variables.declare(name)
+    end
+
+    def check_duplicate_pattern_key(name, loc)
+      if @parser.pattern_hash_keys.declared?(name)
+        diagnostic :error, :duplicate_pattern_key, { name: name.to_s }, loc
+      end
+
+      @parser.pattern_hash_keys.declare(name)
     end
 
     #
@@ -1596,6 +1879,13 @@ module Parser
 
       Source::Map::Condition.new(loc(keyword_t), nil, loc(else_t), nil,
                                  begin_l.join(end_l))
+    end
+
+    def guard_map(keyword_t, guard_body_e)
+      keyword_l = loc(keyword_t)
+      guard_body_l = guard_body_e.loc.expression
+
+      Source::Map::Keyword.new(keyword_l, nil, nil, keyword_l.join(guard_body_l))
     end
 
     #

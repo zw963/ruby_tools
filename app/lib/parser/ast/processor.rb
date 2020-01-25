@@ -124,7 +124,22 @@ module Parser
       alias on_kwarg          process_argument_node
       alias on_kwoptarg       process_argument_node
       alias on_kwrestarg      process_argument_node
-      alias on_procarg0       process_argument_node
+
+      def on_procarg0(node)
+        if node.children[0].is_a?(Symbol)
+          # This branch gets executed when the builder
+          # is not configured to emit and 'arg' inside 'procarg0', i.e. when
+          #   Parser::Builders::Default.emit_arg_inside_procarg0
+          # is set to false.
+          #
+          # If this flag is set to true this branch is unreachable.
+          # s(:procarg0, :a)
+          on_argument(node)
+        else
+          # s(:procarg0, s(:arg, :a), s(:arg, :b))
+          process_regular_node(node)
+        end
+      end
 
       alias on_arg_expr       process_regular_node
       alias on_restarg_expr   process_regular_node
@@ -173,6 +188,14 @@ module Parser
       alias on_block    process_regular_node
       alias on_lambda   process_regular_node
 
+      def on_numblock(node)
+        method_call, max_numparam, body = *node
+
+        node.updated(nil, [
+          process(method_call), max_numparam, process(body)
+        ])
+      end
+
       alias on_while      process_regular_node
       alias on_while_post process_regular_node
       alias on_until      process_regular_node
@@ -212,6 +235,21 @@ module Parser
 
       alias on_preexe   process_regular_node
       alias on_postexe  process_regular_node
+
+      alias on_case_match              process_regular_node
+      alias on_in_match                process_regular_node
+      alias on_in_pattern              process_regular_node
+      alias on_if_guard                process_regular_node
+      alias on_unless_guard            process_regular_node
+      alias on_match_var               process_variable_node
+      alias on_match_rest              process_regular_node
+      alias on_pin                     process_regular_node
+      alias on_match_alt               process_regular_node
+      alias on_match_as                process_regular_node
+      alias on_array_pattern           process_regular_node
+      alias on_array_pattern_with_tail process_regular_node
+      alias on_hash_pattern            process_regular_node
+      alias on_const_pattern           process_regular_node
 
       # @private
       def process_variable_node(node)

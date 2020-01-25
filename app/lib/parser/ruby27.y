@@ -17,7 +17,7 @@ token kCLASS kMODULE kDEF kUNDEF kBEGIN kRESCUE kENSURE kEND kIF kUNLESS
       tWORDS_BEG tQWORDS_BEG tSYMBOLS_BEG tQSYMBOLS_BEG tSTRING_DBEG
       tSTRING_DVAR tSTRING_END tSTRING_DEND tSTRING tSYMBOL
       tNL tEH tCOLON tCOMMA tSPACE tSEMI tLAMBDA tLAMBEG tCHARACTER
-      tRATIONAL tIMAGINARY tLABEL_END tANDDOT tMETHREF tBDOT2 tBDOT3
+      tRATIONAL tIMAGINARY tLABEL_END tANDDOT tBDOT2 tBDOT3
 
 prechigh
   right    tBANG tTILDE tUPLUS
@@ -39,7 +39,7 @@ prechigh
   nonassoc kDEFINED
   right    kNOT
   left     kOR kAND
-  nonassoc kIF_MOD kUNLESS_MOD kWHILE_MOD kUNTIL_MOD
+  nonassoc kIF_MOD kUNLESS_MOD kWHILE_MOD kUNTIL_MOD kIN
   nonassoc tLBRACE_ARG
   nonassoc tLOWEST
 preclow
@@ -87,7 +87,7 @@ rule
                       else_t,   else_   = val[2]
                       ensure_t, ensure_ = val[3]
 
-                      if rescue_bodies.empty? && !else_.nil?
+                      if rescue_bodies.empty? && !else_t.nil?
                         diagnostic :error, :useless_else, nil, else_t
                       end
 
@@ -193,6 +193,15 @@ rule
                       result = @builder.assign(val[0], val[1],
                                   @builder.array(nil, val[2], nil))
                     }
+                | mlhs tEQL mrhs_arg kRESCUE_MOD stmt
+                    {
+                      rescue_body = @builder.rescue_body(val[3],
+                                                         nil, nil, nil,
+                                                         nil, val[4])
+                      begin_body = @builder.begin_body(val[2], [ rescue_body ])
+
+                      result = @builder.multi_assign(val[0], val[1], begin_body)
+                    }
                 | mlhs tEQL mrhs_arg
                     {
                       result = @builder.multi_assign(val[0], val[1], val[2])
@@ -274,7 +283,21 @@ rule
                     {
                       result = @builder.not_op(val[0], nil, val[1], nil)
                     }
-                | arg
+                | arg kIN
+                    {
+                      @lexer.state = :expr_beg
+                      @lexer.command_start = false
+                      pattern_variables.push
+
+                      result = @lexer.in_kwarg
+                      @lexer.in_kwarg = true
+                    }
+                  p_expr
+                    {
+                      @lexer.in_kwarg = val[2]
+                      result = @builder.in_match(val[0], val[1], val[3])
+                    }
+                | arg =tLBRACE_ARG
 
       expr_value: expr
 
@@ -480,6 +503,10 @@ rule
                     }
                 | primary_value call_op tIDENTIFIER
                     {
+                      if (val[1][0] == :anddot)
+                        diagnostic :error, :csend_in_lhs_of_masgn, nil, val[1]
+                      end
+
                       result = @builder.attr_asgn(val[0], val[1], val[2])
                     }
                 | primary_value tCOLON2 tIDENTIFIER
@@ -488,6 +515,10 @@ rule
                     }
                 | primary_value call_op tCONSTANT
                     {
+                      if (val[1][0] == :anddot)
+                        diagnostic :error, :csend_in_lhs_of_masgn, nil, val[1]
+                      end
+
                       result = @builder.attr_asgn(val[0], val[1], val[2])
                     }
                 | primary_value tCOLON2 tCONSTANT
@@ -826,6 +857,14 @@ rule
                     {
                       result = val
                     }
+                | tLPAREN2 args_forward rparen
+                    {
+                      unless @static_env.declared_forward_args?
+                        diagnostic :error, :unexpected_token, { :token => 'tBDOT3' } , val[1]
+                      end
+
+                      result = [val[0], [@builder.forwarded_args(val[1])], val[2]]
+                    }
 
   opt_paren_args: # nothing
                     {
@@ -1116,6 +1155,14 @@ rule
                                              when_bodies, else_t, else_body,
                                              val[3])
                     }
+                | kCASE expr_value opt_terms p_case_body kEND
+                    {
+                      *in_bodies, (else_t, else_body) = *val[3]
+
+                      result = @builder.case_match(val[0], val[1],
+                                             in_bodies, else_t, else_body,
+                                             val[4])
+                    }
                 | kFOR for_var kIN expr_value_do compstmt kEND
                     {
                       result = @builder.for(val[0], val[1], val[2], *val[3], val[4], val[5])
@@ -1183,6 +1230,7 @@ rule
                       @lexer.cmdarg.push(false)
                       @lexer.cond.push(false)
                       @context.push(:def)
+                      @current_arg_stack.push(nil)
                     }
                     f_arglist bodystmt kEND
                     {
@@ -1193,6 +1241,7 @@ rule
                       @lexer.cond.pop
                       @static_env.unextend
                       @context.pop
+                      @current_arg_stack.pop
                     }
                 | kDEF singleton dot_or_colon
                     {
@@ -1204,6 +1253,7 @@ rule
                       @lexer.cmdarg.push(false)
                       @lexer.cond.push(false)
                       @context.push(:defs)
+                      @current_arg_stack.push(nil)
                     }
                     f_arglist bodystmt kEND
                     {
@@ -1214,6 +1264,7 @@ rule
                       @lexer.cond.pop
                       @static_env.unextend
                       @context.pop
+                      @current_arg_stack.pop
                     }
                 | kBREAK
                     {
@@ -1230,10 +1281,6 @@ rule
                 | kRETRY
                     {
                       result = @builder.keyword_cmd(:retry, val[0])
-                    }
-                | primary_value tMETHREF operation2
-                    {
-                      result = @builder.method_ref(val[0], val[1], val[2])
                     }
 
    primary_value: primary
@@ -1294,45 +1341,33 @@ rule
                     }
 
          f_margs: f_marg_list
-                | f_marg_list tCOMMA tSTAR f_norm_arg
+                | f_marg_list tCOMMA f_rest_marg
                     {
                       result = val[0].
-                                  push(@builder.restarg(val[2], val[3]))
+                                  push(val[2])
                     }
-                | f_marg_list tCOMMA tSTAR f_norm_arg tCOMMA f_marg_list
+                | f_marg_list tCOMMA f_rest_marg tCOMMA f_marg_list
                     {
                       result = val[0].
-                                  push(@builder.restarg(val[2], val[3])).
-                                  concat(val[5])
-                    }
-                | f_marg_list tCOMMA tSTAR
-                    {
-                      result = val[0].
-                                  push(@builder.restarg(val[2]))
-                    }
-                | f_marg_list tCOMMA tSTAR            tCOMMA f_marg_list
-                    {
-                      result = val[0].
-                                  push(@builder.restarg(val[2])).
+                                  push(val[2]).
                                   concat(val[4])
                     }
-                |                    tSTAR f_norm_arg
+                |                    f_rest_marg
                     {
-                      result = [ @builder.restarg(val[0], val[1]) ]
+                      result = [ val[0] ]
                     }
-                |                    tSTAR f_norm_arg tCOMMA f_marg_list
+                |                    f_rest_marg tCOMMA f_marg_list
                     {
-                      result = [ @builder.restarg(val[0], val[1]),
-                                 *val[3] ]
+                      result = [ val[0], *val[2] ]
                     }
-                |                    tSTAR
+
+     f_rest_marg: tSTAR f_norm_arg
                     {
-                      result = [ @builder.restarg(val[0]) ]
+                      result = @builder.restarg(val[0], val[1])
                     }
-                |                    tSTAR tCOMMA f_marg_list
+                | tSTAR
                     {
-                      result = [ @builder.restarg(val[0]),
-                                 *val[2] ]
+                      result = @builder.restarg(val[0])
                     }
 
  block_args_tail: f_block_kwarg tCOMMA f_kwrest opt_f_block_arg
@@ -1344,6 +1379,10 @@ rule
                       result = val[0].concat(val[1])
                     }
                 | f_kwrest opt_f_block_arg
+                    {
+                      result = val[0].concat(val[1])
+                    }
+                | f_no_kwarg opt_f_block_arg
                     {
                       result = val[0].concat(val[1])
                     }
@@ -1460,14 +1499,14 @@ opt_block_args_tail:
 
  block_param_def: tPIPE opt_bv_decl tPIPE
                     {
+                      @max_numparam_stack.has_ordinary_params!
+                      @current_arg_stack.set(nil)
                       result = @builder.args(val[0], val[1], val[2])
-                    }
-                | tOROP
-                    {
-                      result = @builder.args(val[0], [], val[0])
                     }
                 | tPIPE block_param opt_bv_decl tPIPE
                     {
+                      @max_numparam_stack.has_ordinary_params!
+                      @current_arg_stack.set(nil)
                       result = @builder.args(val[0], val[1].concat(val[2]), val[3])
                     }
 
@@ -1498,26 +1537,34 @@ opt_block_args_tail:
 
           lambda:   {
                       @static_env.extend_dynamic
+                      @max_numparam_stack.push
+                      @context.push(:lambda)
                     }
                   f_larglist
                     {
+                      @context.pop
                       @lexer.cmdarg.push(false)
                     }
                   lambda_body
                     {
-                      @lexer.cmdarg.pop
+                      args = @max_numparam_stack.has_numparams? ? @builder.numargs(@max_numparam_stack.top) : val[1]
+                      result = [ args, val[3] ]
 
-                      result = [ val[1], val[3] ]
-
+                      @max_numparam_stack.pop
                       @static_env.unextend
+                      @lexer.cmdarg.pop
                     }
 
      f_larglist: tLPAREN2 f_args opt_bv_decl tRPAREN
                     {
+                      @max_numparam_stack.has_ordinary_params!
                       result = @builder.args(val[0], val[1].concat(val[2]), val[3])
                     }
                 | f_args
                     {
+                      if val[0].any?
+                        @max_numparam_stack.has_ordinary_params!
+                      end
                       result = @builder.args(nil, val[0], nil)
                     }
 
@@ -1652,24 +1699,30 @@ opt_block_args_tail:
 
       brace_body:   {
                       @static_env.extend_dynamic
+                      @max_numparam_stack.push
                     }
                     opt_block_param compstmt
                     {
-                      result = [ val[1], val[2] ]
+                      args = @max_numparam_stack.has_numparams? ? @builder.numargs(@max_numparam_stack.top) : val[1]
+                      result = [ args, val[2] ]
 
+                      @max_numparam_stack.pop
                       @static_env.unextend
                     }
 
          do_body:   {
                       @static_env.extend_dynamic
+                      @max_numparam_stack.push
                     }
                     {
                       @lexer.cmdarg.push(false)
                     }
                     opt_block_param bodystmt
                     {
-                      result = [ val[2], val[3] ]
+                      args = @max_numparam_stack.has_numparams? ? @builder.numargs(@max_numparam_stack.top) : val[2]
+                      result = [ args, val[3] ]
 
+                      @max_numparam_stack.pop
                       @static_env.unextend
                       @lexer.cmdarg.pop
                     }
@@ -1685,6 +1738,380 @@ opt_block_args_tail:
                       result = [ val[0] ]
                     }
                 | case_body
+
+     p_case_body: kIN
+                    {
+                      @lexer.state = :expr_beg
+                      @lexer.command_start = false
+                      @pattern_variables.push
+                      @pattern_hash_keys.push
+
+                      result = @lexer.in_kwarg
+                      @lexer.in_kwarg = true
+                    }
+                  p_top_expr then
+                    {
+                      @lexer.in_kwarg = val[1]
+                    }
+                  compstmt p_cases
+                    {
+                      result = [ @builder.in_pattern(val[0], *val[2], val[3], val[5]),
+                                 *val[6] ]
+                    }
+
+         p_cases: opt_else
+                    {
+                      result = [ val[0] ]
+                    }
+                | p_case_body
+
+      p_top_expr: p_top_expr_body
+                    {
+                      result = [ val[0], nil ]
+                    }
+                | p_top_expr_body kIF_MOD expr_value
+                    {
+                      result = [ val[0], @builder.if_guard(val[1], val[2]) ]
+                    }
+                | p_top_expr_body kUNLESS_MOD expr_value
+                    {
+                      result = [ val[0], @builder.unless_guard(val[1], val[2]) ]
+                    }
+
+ p_top_expr_body: p_expr
+                | p_expr tCOMMA
+                    {
+                      # array patterns that end with comma
+                      # like 1, 2,
+                      # must be emitted as `array_pattern_with_tail`
+                      item = @builder.match_with_trailing_comma(val[0])
+                      result = @builder.array_pattern(nil, [ item ], nil)
+                    }
+                | p_expr tCOMMA p_args
+                    {
+                      result = @builder.array_pattern(nil, [val[0]].concat(val[2]), nil)
+                    }
+                | p_args_tail
+                    {
+                      result = @builder.array_pattern(nil, val[0], nil)
+                    }
+                | p_kwargs
+                    {
+                      result = @builder.hash_pattern(nil, val[0], nil)
+                    }
+
+          p_expr: p_as
+
+            p_as: p_expr tASSOC p_variable
+                    {
+                      result = @builder.match_as(val[0], val[1], val[2])
+                    }
+                | p_alt
+
+           p_alt: p_alt tPIPE p_expr_basic
+                    {
+                      result = @builder.match_alt(val[0], val[1], val[2])
+                    }
+                | p_expr_basic
+
+        p_lparen: tLPAREN2
+                    {
+                      result = val[0]
+                      @pattern_hash_keys.push
+                    }
+
+      p_lbracket: tLBRACK2
+                    {
+                      result = val[0]
+                      @pattern_hash_keys.push
+                    }
+
+    p_expr_basic: p_value
+                | p_const p_lparen p_args rparen
+                    {
+                      @pattern_hash_keys.pop
+                      pattern = @builder.array_pattern(nil, val[2], nil)
+                      result = @builder.const_pattern(val[0], val[1], pattern, val[3])
+                    }
+                | p_const p_lparen p_kwargs rparen
+                    {
+                      @pattern_hash_keys.pop
+                      pattern = @builder.hash_pattern(nil, val[2], nil)
+                      result = @builder.const_pattern(val[0], val[1], pattern, val[3])
+                    }
+                | p_const tLPAREN2 rparen
+                    {
+                      result = @builder.const_pattern(val[0], val[1], nil, val[2])
+                    }
+                | p_const p_lbracket p_args rbracket
+                    {
+                      @pattern_hash_keys.pop
+                      pattern = @builder.array_pattern(nil, val[2], nil)
+                      result = @builder.const_pattern(val[0], val[1], pattern, val[3])
+                    }
+                | p_const p_lbracket p_kwargs rbracket
+                    {
+                      @pattern_hash_keys.pop
+                      pattern = @builder.hash_pattern(nil, val[2], nil)
+                      result = @builder.const_pattern(val[0], val[1], pattern, val[3])
+                    }
+                | p_const tLBRACK2 rbracket
+                    {
+                      result = @builder.const_pattern(val[0], val[1], nil, val[2])
+                    }
+                | tLBRACK
+                    {
+                      @pattern_hash_keys.push
+                    }
+                  p_args rbracket
+                    {
+                      @pattern_hash_keys.pop
+                      result = @builder.array_pattern(val[0], val[2], val[3])
+                    }
+                | tLBRACK rbracket
+                    {
+                      result = @builder.array_pattern(val[0], [], val[1])
+                    }
+                | tLBRACE
+                    {
+                      @pattern_hash_keys.push
+                    }
+                  p_kwargs tRCURLY
+                    {
+                      @pattern_hash_keys.pop
+                      result = @builder.hash_pattern(val[0], val[2], val[3])
+                    }
+                | tLBRACE tRCURLY
+                    {
+                      result = @builder.hash_pattern(val[0], [], val[1])
+                    }
+                | tLPAREN
+                    {
+                      @pattern_hash_keys.push
+                    }
+                  p_expr rparen
+                    {
+                      @pattern_hash_keys.pop
+                      result = @builder.begin(val[0], val[2], val[3])
+                    }
+
+          p_args: p_expr
+                    {
+                      result = [ val[0] ]
+                    }
+                | p_args_head
+                    {
+                      result = val[0]
+                    }
+                | p_args_head p_arg
+                    {
+                      result = [ *val[0], val[1] ]
+                    }
+                | p_args_head tSTAR tIDENTIFIER
+                    {
+                      match_rest = @builder.match_rest(val[1], val[2])
+                      result = [ *val[0], match_rest ]
+                    }
+                | p_args_head tSTAR tIDENTIFIER tCOMMA p_args_post
+                    {
+                      match_rest = @builder.match_rest(val[1], val[2])
+                      result = [ *val[0], match_rest, *val[4] ]
+                    }
+                | p_args_head tSTAR
+                    {
+                      result = [ *val[0], @builder.match_rest(val[1]) ]
+                    }
+                | p_args_head tSTAR tCOMMA p_args_post
+                    {
+                      result = [ *val[0], @builder.match_rest(val[1]), *val[3] ]
+                    }
+                | p_args_tail
+
+     p_args_head: p_arg tCOMMA
+                    {
+                      # array patterns that end with comma
+                      # like [1, 2,]
+                      # must be emitted as `array_pattern_with_tail`
+                      item = @builder.match_with_trailing_comma(val[0])
+                      result = [ item ]
+                    }
+                | p_args_head p_arg tCOMMA
+                    {
+                      # array patterns that end with comma
+                      # like [1, 2,]
+                      # must be emitted as `array_pattern_with_tail`
+                      last_item = @builder.match_with_trailing_comma(val[1])
+                      result = [ *val[0], last_item ]
+                    }
+
+     p_args_tail: tSTAR tIDENTIFIER
+                    {
+                      match_rest = @builder.match_rest(val[0], val[1])
+                      result = [ match_rest ]
+                    }
+                | tSTAR tIDENTIFIER tCOMMA p_args_post
+                    {
+                      match_rest = @builder.match_rest(val[0], val[1])
+                      result = [ match_rest, *val[3] ]
+                    }
+                | tSTAR
+                    {
+                      match_rest = @builder.match_rest(val[0])
+                      result = [ match_rest ]
+                    }
+                | tSTAR tCOMMA p_args_post
+                    {
+                      match_rest = @builder.match_rest(val[0])
+                      result = [ match_rest, *val[2] ]
+                    }
+
+     p_args_post: p_arg
+                    {
+                      result = [ val[0] ]
+                    }
+                | p_args_post tCOMMA p_arg
+                    {
+                      result = [ *val[0], val[2] ]
+                    }
+
+           p_arg: p_expr
+
+        p_kwargs: p_kwarg tCOMMA p_kwrest
+                    {
+                      result = [ *val[0], *val[2] ]
+                    }
+                | p_kwarg
+                    {
+                      result = val[0]
+                    }
+                | p_kwrest
+                    {
+                      result = val[0]
+                    }
+                | p_kwarg tCOMMA p_kwnorest
+                    {
+                      result = [ *val[0], *val[2] ]
+                    }
+                | p_kwnorest
+                    {
+                      result = [ *val[0], *val[2] ]
+                    }
+
+         p_kwarg: p_kw
+                    {
+                      result = [ val[0] ]
+                    }
+                | p_kwarg tCOMMA p_kw
+                    {
+                      result = [ *val[0], val[2] ]
+                    }
+
+            p_kw: p_kw_label p_expr
+                    {
+                      result = @builder.match_pair(*val[0], val[1])
+                    }
+                | p_kw_label
+                    {
+                      result = @builder.match_label(*val[0])
+                    }
+
+      p_kw_label: tLABEL
+                  {
+                    check_kwarg_name(val[0])
+                    result = [:label, val[0]]
+                  }
+                | tSTRING_BEG string_contents tLABEL_END
+                  {
+                    result = [:quoted, [val[0], val[1], val[2]]]
+                  }
+
+        p_kwrest: kwrest_mark tIDENTIFIER
+                    {
+                      result = [ @builder.match_rest(val[0], val[1]) ]
+                    }
+                | kwrest_mark
+                    {
+                      result = [ @builder.match_rest(val[0], nil) ]
+                    }
+
+      p_kwnorest: kwrest_mark kNIL
+                    {
+                      result = [ @builder.match_nil_pattern(val[0], val[1]) ]
+                    }
+
+         p_value: p_primitive
+                | p_primitive tDOT2 p_primitive
+                    {
+                      result = @builder.range_inclusive(val[0], val[1], val[2])
+                    }
+                | p_primitive tDOT3 p_primitive
+                    {
+                      result = @builder.range_exclusive(val[0], val[1], val[2])
+                    }
+                | p_primitive tDOT2
+                    {
+                      result = @builder.range_inclusive(val[0], val[1], nil)
+                    }
+                | p_primitive tDOT3
+                    {
+                      result = @builder.range_exclusive(val[0], val[1], nil)
+                    }
+                | p_variable
+                | p_var_ref
+                | p_const
+                | tBDOT2 p_primitive
+                    {
+                      result = @builder.range_inclusive(nil, val[0], val[1])
+                    }
+                | tBDOT3 p_primitive
+                    {
+                      result = @builder.range_exclusive(nil, val[0], val[1])
+                    }
+
+     p_primitive: literal
+                | strings
+                | xstring
+                | regexp
+                | words
+                | qwords
+                | symbols
+                | qsymbols
+                | keyword_variable
+                    {
+                      result = @builder.accessible(val[0])
+                    }
+                | tLAMBDA lambda
+                    {
+                      lambda_call = @builder.call_lambda(val[0])
+
+                      args, (begin_t, body, end_t) = val[1]
+                      result      = @builder.block(lambda_call,
+                                      begin_t, args, body, end_t)
+                    }
+
+      p_variable: tIDENTIFIER
+                    {
+                      result = @builder.match_var(val[0])
+                    }
+
+       p_var_ref: tCARET tIDENTIFIER
+                    {
+                      lvar = @builder.accessible(@builder.ident(val[1]))
+                      result = @builder.pin(val[0], lvar)
+                    }
+
+         p_const: tCOLON3 cname
+                    {
+                      result = @builder.const_global(val[0], val[1])
+                    }
+                | p_const tCOLON2 cname
+                    {
+                      result = @builder.const_fetch(val[0], val[1], val[2])
+                    }
+                | tCONSTANT
+                   {
+                      result = @builder.const(val[0])
+                   }
 
       opt_rescue: kRESCUE exc_list exc_var then compstmt opt_rescue
                     {
@@ -1996,6 +2423,46 @@ keyword_variable: kNIL
 
          var_ref: user_variable
                     {
+                      if (node = val[0]) && node.type == :ident
+                        name = node.children[0]
+
+                        if name =~ /\A_[1-9]\z/ && !static_env.declared?(name) && context.in_dynamic_block?
+                          # definitely an implicit param
+                          location = node.loc.expression
+
+                          if max_numparam_stack.has_ordinary_params?
+                            diagnostic :error, :ordinary_param_defined, nil, [nil, location]
+                          end
+
+                          raw_context = context.stack.dup
+                          raw_max_numparam_stack = max_numparam_stack.stack.dup
+
+                          # ignore current block scope
+                          raw_context.pop
+                          raw_max_numparam_stack.pop
+
+                          raw_context.reverse_each do |outer_scope|
+                            if outer_scope == :block || outer_scope == :lambda
+                              outer_scope_has_numparams = raw_max_numparam_stack.pop > 0
+
+                              if outer_scope_has_numparams
+                                diagnostic :error, :numparam_used_in_outer_scope, nil, [nil, location]
+                              else
+                                # for now it's ok, but an outer scope can also be a block
+                                # with numparams, so we need to continue
+                              end
+                            else
+                              # found an outer scope that can't have numparams
+                              # like def/class/etc
+                              break
+                            end
+                          end
+
+                          static_env.declare(name)
+                          max_numparam_stack.register(name[1].to_i)
+                        end
+                      end
+
                       result = @builder.accessible(val[0])
                     }
                 | keyword_variable
@@ -2040,6 +2507,13 @@ keyword_variable: kNIL
 
                       @lexer.state = :expr_value
                     }
+                | tLPAREN2 args_forward rparen
+                    {
+                      result = @builder.forward_args(val[0], val[1], val[2])
+                      @static_env.declare_forward_args
+
+                      @lexer.state = :expr_value
+                    }
                 |   {
                       result = @lexer.in_kwarg
                       @lexer.in_kwarg = true
@@ -2059,6 +2533,10 @@ keyword_variable: kNIL
                       result = val[0].concat(val[1])
                     }
                 | f_kwrest opt_f_block_arg
+                    {
+                      result = val[0].concat(val[1])
+                    }
+                | f_no_kwarg opt_f_block_arg
                     {
                       result = val[0].concat(val[1])
                     }
@@ -2166,6 +2644,11 @@ keyword_variable: kNIL
                       result = []
                     }
 
+    args_forward: tBDOT3
+                    {
+                      result = val[0]
+                    }
+
        f_bad_arg: tCONSTANT
                     {
                       diagnostic :error, :argument_const, nil, val[0]
@@ -2188,16 +2671,20 @@ keyword_variable: kNIL
                     {
                       @static_env.declare val[0][0]
 
+                      @max_numparam_stack.has_ordinary_params!
+
                       result = val[0]
                     }
 
       f_arg_asgn: f_norm_arg
                     {
+                      @current_arg_stack.set(val[0][0])
                       result = val[0]
                     }
 
       f_arg_item: f_arg_asgn
                     {
+                      @current_arg_stack.set(0)
                       result = @builder.arg(val[0])
                     }
                 | tLPAREN f_margs rparen
@@ -2220,15 +2707,21 @@ keyword_variable: kNIL
 
                       @static_env.declare val[0][0]
 
+                      @max_numparam_stack.has_ordinary_params!
+
+                      @current_arg_stack.set(val[0][0])
+
                       result = val[0]
                     }
 
             f_kw: f_label arg_value
                     {
+                      @current_arg_stack.set(nil)
                       result = @builder.kwoptarg(val[0], val[1])
                     }
                 | f_label
                     {
+                      @current_arg_stack.set(nil)
                       result = @builder.kwarg(val[0])
                     }
 
@@ -2261,6 +2754,11 @@ keyword_variable: kNIL
 
      kwrest_mark: tPOW | tDSTAR
 
+      f_no_kwarg: kwrest_mark kNIL
+                    {
+                      result = [ @builder.kwnilarg(val[0], val[1]) ]
+                    }
+
         f_kwrest: kwrest_mark tIDENTIFIER
                     {
                       @static_env.declare val[1][0]
@@ -2274,11 +2772,13 @@ keyword_variable: kNIL
 
            f_opt: f_arg_asgn tEQL arg_value
                     {
+                      @current_arg_stack.set(0)
                       result = @builder.optarg(val[0], val[1], val[2])
                     }
 
      f_block_opt: f_arg_asgn tEQL primary_value
                     {
+                      @current_arg_stack.set(0)
                       result = @builder.optarg(val[0], val[1], val[2])
                     }
 

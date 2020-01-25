@@ -87,7 +87,7 @@ rule
                       else_t,   else_   = val[2]
                       ensure_t, ensure_ = val[3]
 
-                      if rescue_bodies.empty? && !else_.nil?
+                      if rescue_bodies.empty? && !else_t.nil?
                         diagnostic :warning, :useless_else, nil, else_t
                       end
 
@@ -1885,7 +1885,7 @@ regexp_contents: # nothing
                       result = @builder.symbol(val[0])
                     }
 
-            dsym: tSYMBEG xstring_contents tSTRING_END
+            dsym: tSYMBEG string_contents tSTRING_END
                     {
                       @lexer.state = :expr_end
                       result = @builder.symbol_compose(val[0], val[1], val[2])

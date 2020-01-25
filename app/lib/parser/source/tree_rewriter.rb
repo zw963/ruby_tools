@@ -266,7 +266,7 @@ module Parser
 
       def combine(range, attributes)
         range = check_range_validity(range)
-        action = TreeRewriter::Action.new(range, @enforcer, attributes)
+        action = TreeRewriter::Action.new(range, @enforcer, **attributes)
         @action_root = @action_root.combine(action)
         self
       end
@@ -281,7 +281,7 @@ module Parser
       def enforce_policy(event)
         return if @policy[event] == :accept
         return unless (values = yield)
-        trigger_policy(event, values)
+        trigger_policy(event, **values)
       end
 
       POLICY_TO_LEVEL = {warn: :warning, raise: :error}.freeze
