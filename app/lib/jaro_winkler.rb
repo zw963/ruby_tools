@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'jaro_winkler/version'
-require 'rbconfig'
 
 if RUBY_ENGINE == 'ruby'
   begin
