@@ -127,31 +127,24 @@ module RuboCop
       # @see https://api.rubyonrails.org/classes/ActiveRecord/Migration/CommandRecorder.html
       class ReversibleMigration < Cop
         MSG = '%<action>s is not reversible.'
-        IRREVERSIBLE_CHANGE_TABLE_CALLS = %i[
-          change change_default remove
-        ].freeze
 
-        def_node_matcher :irreversible_schema_statement_call, <<-PATTERN
-          (send nil? ${:change_table_comment :execute :remove_belongs_to} ...)
+        def_node_matcher :irreversible_schema_statement_call, <<~PATTERN
+          (send nil? ${:execute :remove_belongs_to} ...)
         PATTERN
 
-        def_node_matcher :drop_table_call, <<-PATTERN
+        def_node_matcher :drop_table_call, <<~PATTERN
           (send nil? :drop_table ...)
         PATTERN
 
-        def_node_matcher :change_column_default_call, <<-PATTERN
-          (send nil? :change_column_default {[(sym _) (sym _)] (splat _)} $...)
-        PATTERN
-
-        def_node_matcher :remove_column_call, <<-PATTERN
+        def_node_matcher :remove_column_call, <<~PATTERN
           (send nil? :remove_column $...)
         PATTERN
 
-        def_node_matcher :remove_foreign_key_call, <<-PATTERN
+        def_node_matcher :remove_foreign_key_call, <<~PATTERN
           (send nil? :remove_foreign_key _ $_)
         PATTERN
 
-        def_node_matcher :change_table_call, <<-PATTERN
+        def_node_matcher :change_table_call, <<~PATTERN
           (send nil? :change_table $_ ...)
         PATTERN
 
@@ -161,7 +154,7 @@ module RuboCop
 
           check_irreversible_schema_statement_node(node)
           check_drop_table_node(node)
-          check_change_column_default_node(node)
+          check_reversible_hash_node(node)
           check_remove_column_node(node)
           check_remove_foreign_key_node(node)
         end
@@ -193,17 +186,15 @@ module RuboCop
           end
         end
 
-        def check_change_column_default_node(node)
-          change_column_default_call(node) do |args|
-            unless all_hash_key?(args.last, :from, :to)
-              add_offense(
-                node,
-                message: format(
-                  MSG, action: 'change_column_default(without :from and :to)'
-                )
-              )
-            end
-          end
+        def check_reversible_hash_node(node)
+          return if reversible_change_table_call?(node)
+
+          add_offense(
+            node,
+            message: format(
+              MSG, action: "#{node.method_name}(without :from and :to)"
+            )
+          )
         end
 
         def check_remove_column_node(node)
@@ -244,12 +235,24 @@ module RuboCop
         def check_change_table_offense(receiver, node)
           method_name = node.method_name
           return if receiver != node.receiver &&
-                    !IRREVERSIBLE_CHANGE_TABLE_CALLS.include?(method_name)
+                    reversible_change_table_call?(node)
 
           add_offense(
             node,
             message: format(MSG, action: "change_table(with #{method_name})")
           )
+        end
+
+        def reversible_change_table_call?(node)
+          case node.method_name
+          when :change, :remove
+            false
+          when :change_default, :change_column_default, :change_table_comment,
+               :change_column_comment
+            all_hash_key?(node.arguments.last, :from, :to)
+          else
+            true
+          end
         end
 
         def within_change_method?(node)

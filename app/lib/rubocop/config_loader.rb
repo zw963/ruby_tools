@@ -46,7 +46,7 @@ module RuboCop
 
         add_missing_namespaces(path, hash)
 
-        resolver.resolve_inheritance_from_gems(hash, hash.delete('inherit_gem'))
+        resolver.resolve_inheritance_from_gems(hash)
         resolver.resolve_inheritance(path, hash, file, debug?)
 
         hash.delete('inherit_from')
@@ -91,7 +91,9 @@ module RuboCop
         else
           add_excludes_from_files(config, config_file)
         end
-        merge_with_default(config, config_file)
+        merge_with_default(config, config_file).tap do |merged_config|
+          warn_on_pending_cops(merged_config)
+        end
       end
 
       def add_excludes_from_files(config, config_file)
@@ -112,6 +114,22 @@ module RuboCop
                                      print 'Default ' if debug?
                                      load_file(DEFAULT_FILE)
                                    end
+      end
+
+      def warn_on_pending_cops(config)
+        pending_cops = config.keys.select do |key|
+          config[key]['Enabled'] == 'pending'
+        end
+
+        return if pending_cops.none?
+
+        warn Rainbow('The following cops were added to RuboCop, but are not ' \
+                     'configured. Please set Enabled to either `true` or ' \
+                     '`false` in your `.rubocop.yml` file:').yellow
+
+        pending_cops.each do |cop|
+          warn Rainbow(" - #{cop}").yellow
+        end
       end
 
       # Merges the given configuration with the default one. If
@@ -240,11 +258,11 @@ module RuboCop
             yaml_code,
             permitted_classes: [Regexp, Symbol],
             permitted_symbols: [],
-            aliases: false,
+            aliases: true,
             filename: filename
           )
         else
-          YAML.safe_load(yaml_code, [Regexp, Symbol], [], false, filename)
+          YAML.safe_load(yaml_code, [Regexp, Symbol], [], true, filename)
         end
       end
     end

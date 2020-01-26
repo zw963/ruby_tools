@@ -65,7 +65,8 @@ module RuboCop
         end
 
         def non_redundant_merge?(node, receiver, pairs)
-          non_redundant_pairs?(receiver, pairs) ||
+          pairs.empty? ||
+            non_redundant_pairs?(receiver, pairs) ||
             kwsplat_used?(pairs) ||
             non_redundant_value_used?(receiver, node)
         end
@@ -128,11 +129,11 @@ module RuboCop
         end
 
         def indent_width
-          @config.for_cop('IndentationWidth')['Width'] || 2
+          @config.for_cop('Layout/IndentationWidth')['Width'] || 2
         end
 
         def max_key_value_pairs
-          Integer(cop_config['MaxKeyValuePairs']) || 2
+          Integer(cop_config['MaxKeyValuePairs'] || 2)
         end
 
         # A utility class for checking the use of values within an

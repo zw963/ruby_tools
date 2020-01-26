@@ -14,6 +14,15 @@ module RuboCop
       #
       #   # good
       #   class SomeClass
+      #     EXPIRES = 1.week
+      #
+      #     def self.expired_at
+      #       EXPIRES.since
+      #     end
+      #   end
+      #
+      #   # good
+      #   class SomeClass
       #     def self.expired_at
       #       1.week.since
       #     end
@@ -68,7 +77,7 @@ module RuboCop
 
         private
 
-        def_node_matcher :relative_date_assignment?, <<-PATTERN
+        def_node_matcher :relative_date_assignment?, <<~PATTERN
           {
             (casgn _ _ (send _ ${:since :from_now :after :ago :until :before}))
             (casgn _ _ ({erange irange} _ (send _ ${:since :from_now :after :ago :until :before})))
@@ -76,11 +85,11 @@ module RuboCop
           }
         PATTERN
 
-        def_node_matcher :relative_date_or_assignment?, <<-PATTERN
+        def_node_matcher :relative_date_or_assignment?, <<~PATTERN
           (:or_asgn (casgn _ _) (send _ ${:since :from_now :after :ago :until :before}))
         PATTERN
 
-        def_node_matcher :relative_date?, <<-PATTERN
+        def_node_matcher :relative_date?, <<~PATTERN
           {
             ({erange irange} _ (send _ ${:since :from_now :after :ago :until :before}))
             ({erange irange} (send _ ${:since :from_now :after :ago :until :before}) _)

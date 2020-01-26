@@ -5,10 +5,11 @@ require_relative 'rspec/capybara/feature_methods'
 
 require_relative 'rspec/factory_bot/attribute_defined_statically'
 require_relative 'rspec/factory_bot/create_list'
+require_relative 'rspec/factory_bot/factory_class_name'
 
 begin
   require_relative 'rspec/rails/http_status'
-rescue LoadError # rubocop:disable Lint/HandleExceptions
+rescue LoadError # rubocop:disable Lint/SuppressedException
   # Rails/HttpStatus cannot be loaded if rack/utils is unavailable.
 end
 
@@ -19,13 +20,16 @@ require_relative 'rspec/around_block'
 require_relative 'rspec/be'
 require_relative 'rspec/be_eql'
 require_relative 'rspec/before_after_all'
+require_relative 'rspec/context_method'
 require_relative 'rspec/context_wording'
 require_relative 'rspec/describe_class'
 require_relative 'rspec/describe_method'
 require_relative 'rspec/describe_symbol'
 require_relative 'rspec/described_class'
+require_relative 'rspec/described_class_module_wrapping'
 require_relative 'rspec/dialect'
 require_relative 'rspec/empty_example_group'
+require_relative 'rspec/empty_line_after_example'
 require_relative 'rspec/empty_line_after_example_group'
 require_relative 'rspec/empty_line_after_final_let'
 require_relative 'rspec/empty_line_after_hook'

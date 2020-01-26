@@ -42,7 +42,7 @@ module RuboCop
 
         MSG = 'Use `%<prefer>s` instead of `%<current>s`.'
 
-        def_node_matcher :redundant_receiver_and_other, <<-PATTERN
+        def_node_matcher :redundant_receiver_and_other, <<~PATTERN
           {
             (if
               (send $_recv :present?)
@@ -57,7 +57,7 @@ module RuboCop
           }
         PATTERN
 
-        def_node_matcher :redundant_negative_receiver_and_other, <<-PATTERN
+        def_node_matcher :redundant_negative_receiver_and_other, <<~PATTERN
           {
             (if
               (send (send $_recv :present?) :!)
@@ -119,15 +119,17 @@ module RuboCop
         def replacement(receiver, other)
           or_source = if other&.send_type?
                         build_source_for_or_method(other)
-                      else
+                      elsif other.nil? || other.nil_type?
                         ''
+                      else
+                        " || #{other.source}"
                       end
 
           "#{receiver.source}.presence" + or_source
         end
 
         def build_source_for_or_method(other)
-          if other.parenthesized? || !other.arguments?
+          if other.parenthesized? || other.method?('[]') || !other.arguments?
             " || #{other.source}"
           else
             method = range_between(

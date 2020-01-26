@@ -72,12 +72,12 @@ module RuboCop
 
           elsif_branches << node.if_branch
 
-          if node.else_branch&.if_type?
-            expand_elsif(node.else_branch, elsif_branches)
+          else_branch = node.else_branch
+          if else_branch&.if_type? && else_branch&.elsif?
+            expand_elsif(else_branch, elsif_branches)
           else
-            elsif_branches << node.else_branch
+            elsif_branches << else_branch
           end
-          elsif_branches
         end
 
         def lhs_for_send(node)
@@ -212,7 +212,7 @@ module RuboCop
           %i[casgn cvasgn gvasgn ivasgn lvasgn].freeze
         ASSIGNMENT_TYPES = VARIABLE_ASSIGNMENT_TYPES +
                            %i[and_asgn or_asgn op_asgn masgn].freeze
-        LINE_LENGTH = 'Metrics/LineLength'
+        LINE_LENGTH = 'Layout/LineLength'
         INDENTATION_WIDTH = 'Layout/IndentationWidth'
         ENABLED = 'Enabled'
         MAX = 'Max'
@@ -376,7 +376,7 @@ module RuboCop
             assignment_types_match?(*statements)
         end
 
-        # If `Metrics/LineLength` is enabled, we do not want to introduce an
+        # If `Layout/LineLength` is enabled, we do not want to introduce an
         # offense by auto-correcting this cop. Find the max configured line
         # length. Find the longest line of condition. Remove the assignment
         # from lines that contain the offending assignment because after

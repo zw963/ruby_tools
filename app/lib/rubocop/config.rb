@@ -53,6 +53,13 @@ module RuboCop
       @signature ||= Digest::SHA1.hexdigest(to_s)
     end
 
+    # True if this is a config file that is shipped with RuboCop
+    def internal?
+      base_config_path = File.expand_path(File.join(ConfigLoader::RUBOCOP_HOME,
+                                                    'config'))
+      File.expand_path(loaded_path).start_with?(base_config_path)
+    end
+
     def make_excludes_absolute
       each_key do |key|
         @validator.validate_section_presence(key)
@@ -96,6 +103,10 @@ module RuboCop
       @for_cop[cop.respond_to?(:cop_name) ? cop.cop_name : cop]
     end
 
+    def for_department(department_name)
+      @for_cop[department_name]
+    end
+
     def for_all_cops
       @for_all_cops ||= self['AllCops'] || {}
     end
@@ -104,7 +115,7 @@ module RuboCop
       relative_file_path = path_relative_to_config(file)
 
       # Optimization to quickly decide if the given file is hidden (on the top
-      # level) and can not be matched by any pattern.
+      # level) and cannot be matched by any pattern.
       is_hidden = relative_file_path.start_with?('.') &&
                   !relative_file_path.start_with?('..')
       return false if is_hidden && !possibly_include_hidden?

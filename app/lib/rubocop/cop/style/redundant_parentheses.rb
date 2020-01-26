@@ -19,7 +19,7 @@ module RuboCop
         def_node_matcher :square_brackets?,
                          '(send {(send _recv _msg) str array hash} :[] ...)'
         def_node_matcher :range_end?, '^^{irange erange}'
-        def_node_matcher :method_node_and_args, '$(send _recv _msg $...)'
+        def_node_matcher :method_node_and_args, '$(call _recv _msg $...)'
         def_node_matcher :rescue?, '{^resbody ^^resbody}'
         def_node_matcher :arg_in_call_with_block?,
                          '^^(block (send _ _ equal?(%0) ...) ...)'
@@ -40,7 +40,7 @@ module RuboCop
 
         def parens_allowed?(node)
           empty_parentheses?(node) ||
-            hash_literal_as_first_arg?(node) ||
+            first_arg_begins_with_hash_literal?(node) ||
             rescue?(node) ||
             allowed_expression?(node)
         end
@@ -76,10 +76,19 @@ module RuboCop
           node.children.empty?
         end
 
-        def hash_literal_as_first_arg?(node)
-          # Don't flag `method ({key: value})`
-          node.children.first.hash_type? && first_argument?(node) &&
+        def first_arg_begins_with_hash_literal?(node)
+          # Don't flag `method ({key: value})` or `method ({key: value}.method)`
+          method_chain_begins_with_hash_literal?(node.children.first) &&
+            first_argument?(node) &&
             !parentheses?(node.parent)
+        end
+
+        def method_chain_begins_with_hash_literal?(node)
+          return false if node.nil?
+          return true if node.hash_type?
+          return false unless node.send_type?
+
+          method_chain_begins_with_hash_literal?(node.children.first)
         end
 
         def check(begin_node)
@@ -93,7 +102,7 @@ module RuboCop
           return offense(begin_node, 'a variable') if node.variable?
           return offense(begin_node, 'a constant') if node.const_type?
 
-          check_send(begin_node, node) if node.send_type?
+          check_send(begin_node, node) if node.call_type?
         end
 
         def check_send(begin_node, node)
@@ -186,7 +195,7 @@ module RuboCop
         end
 
         def method_call_with_redundant_parentheses?(node)
-          return false unless node.send_type?
+          return false unless node.call_type?
           return false if node.prefix_not?
           return false if range_end?(node)
 

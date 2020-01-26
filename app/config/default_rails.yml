@@ -2,7 +2,8 @@
 
 AllCops:
   Exclude:
-    - bin/bundle
+    - bin/*
+    - db/schema.rb
   # What version of Rails is the inspected code using?  If a value is specified
   # for TargetRailsVersion then it is used.  Acceptable values are specificed
   # as a float (i.e. 5.1); the patch version of Rails should not be included.
@@ -49,10 +50,20 @@ Rails/ActiveSupportAliases:
   Enabled: true
   VersionAdded: '0.48'
 
+Rails/ApplicationController:
+  Description: 'Check that controllers subclass ApplicationController.'
+  Enabled: true
+  VersionAdded: '2.4'
+
 Rails/ApplicationJob:
   Description: 'Check that jobs subclass ApplicationJob.'
   Enabled: true
   VersionAdded: '0.49'
+
+Rails/ApplicationMailer:
+  Description: 'Check that mailers subclass ApplicationMailer.'
+  Enabled: true
+  VersionAdded: '2.4'
 
 Rails/ApplicationRecord:
   Description: 'Check that models subclass ApplicationRecord.'
@@ -183,8 +194,8 @@ Rails/FilePath:
   Description: 'Use `Rails.root.join` for file path joining.'
   Enabled: true
   VersionAdded: '0.47'
-  VersionChanged: '0.57'
-  EnforcedStyle: arguments
+  VersionChanged: '2.4'
+  EnforcedStyle: slashes
   SupportedStyles:
     - slashes
     - arguments
@@ -323,6 +334,15 @@ Rails/Present:
   # Convert usages of `unless blank?` to `if present?`
   UnlessBlank: true
 
+Rails/RakeEnvironment:
+  Description: 'Include `:environment` as a dependency for all Rake tasks.'
+  Enabled: true
+  Safe: false
+  VersionAdded: '2.4'
+  Include:
+    - '**/Rakefile'
+    - '**/*.rake'
+
 Rails/ReadWriteAttribute:
   Description: >-
                  Checks for read_attribute(:attr) and
@@ -394,6 +414,18 @@ Rails/SafeNavigation:
   # both raise a `NoMethodError` if the receiver of the method call does not
   # implement the intended method. `try` will not raise an exception for this.
   ConvertTry: false
+
+Rails/SafeNavigationWithBlank:
+  Description: 'Avoid `foo&.blank?` in conditionals.'
+  Enabled: true
+  VersionAdded: '2.4'
+  # While the safe navigation operator is generally a good idea, when
+  # checking `foo&.blank?` in a conditional, `foo` being `nil` will actually
+  # do the opposite of what the author intends.
+  #
+  # foo&.blank? #=> nil
+  # foo.blank? #=> true
+  SafeAutoCorrect: false
 
 Rails/SaveBang:
   Description: 'Identifies possible cases where Active Record save! or related should be used.'

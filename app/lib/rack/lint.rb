@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'rack/utils'
 require 'forwardable'
 
@@ -33,7 +35,7 @@ module Rack
 
     ## A Rack application is a Ruby object (not a class) that
     ## responds to +call+.
-    def call(env=nil)
+    def call(env = nil)
       dup._call(env)
     end
 
@@ -123,9 +125,8 @@ module Rack
       ##                            the presence or absence of the
       ##                            appropriate HTTP header in the
       ##                            request. See
-      ##                            <a href="https://tools.ietf.org/html/rfc3875#section-4.1.18">
-      ##                            RFC3875 section 4.1.18</a> for
-      ##                            specific behavior.
+      ##                            {RFC3875 section 4.1.18}[https://tools.ietf.org/html/rfc3875#section-4.1.18]
+      ##                            for specific behavior.
 
       ## In addition to this, the Rack environment must include these
       ## Rack-specific variables:
@@ -263,7 +264,7 @@ module Rack
       ## <tt>HTTP_CONTENT_TYPE</tt> or <tt>HTTP_CONTENT_LENGTH</tt>
       ## (use the versions without <tt>HTTP_</tt>).
       %w[HTTP_CONTENT_TYPE HTTP_CONTENT_LENGTH].each { |header|
-        assert("env contains #{header}, must use #{header[5,-1]}") {
+        assert("env contains #{header}, must use #{header[5, -1]}") {
           not env.include? header
         }
       }
@@ -626,15 +627,17 @@ module Rack
       assert("headers object should respond to #each, but doesn't (got #{header.class} as headers)") {
          header.respond_to? :each
       }
-      header.each { |key, value|
-        ## Special headers starting "rack." are for communicating with the
-        ## server, and must not be sent back to the client.
-        next if key =~ /^rack\..+$/
 
+      header.each { |key, value|
         ## The header keys must be Strings.
         assert("header key must be a string, was #{key.class}") {
           key.kind_of? String
         }
+
+        ## Special headers starting "rack." are for communicating with the
+        ## server, and must not be sent back to the client.
+        next if key =~ /^rack\..+$/
+
         ## The header must not contain a +Status+ key.
         assert("header must not contain Status") { key.downcase != "status" }
         ## The header must conform to RFC7230 token specification, i.e. cannot
@@ -662,7 +665,7 @@ module Rack
         ## 204 or 304.
         if key.downcase == "content-type"
           assert("Content-Type header found in #{status} response, not allowed") {
-            not Rack::Utils::STATUS_WITH_NO_ENTITY_BODY.include? status.to_i
+            not Rack::Utils::STATUS_WITH_NO_ENTITY_BODY.key? status.to_i
           }
           return
         end
@@ -676,7 +679,7 @@ module Rack
           ## There must not be a <tt>Content-Length</tt> header when the
           ## +Status+ is 1xx, 204 or 304.
           assert("Content-Length header found in #{status} response, not allowed") {
-            not Rack::Utils::STATUS_WITH_NO_ENTITY_BODY.include? status.to_i
+            not Rack::Utils::STATUS_WITH_NO_ENTITY_BODY.key? status.to_i
           }
           @content_length = value
         end

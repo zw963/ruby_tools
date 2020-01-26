@@ -1,11 +1,15 @@
-require "rack/file"
+# frozen_string_literal: true
+
+require "rack/files"
 require "rack/utils"
+
+require_relative 'core_ext/regexp'
 
 module Rack
 
   # The Rack::Static middleware intercepts requests for static files
   # (javascript files, images, stylesheets, etc) based on the url prefixes or
-  # route mappings passed in the options, and serves them using a Rack::File
+  # route mappings passed in the options, and serves them using a Rack::Files
   # object. This allows a Rack stack to serve both static and dynamic content.
   #
   # Examples:
@@ -82,8 +86,9 @@ module Rack
   #         ]
   #
   class Static
+    using ::Rack::RegexpExtensions
 
-    def initialize(app, options={})
+    def initialize(app, options = {})
       @app = app
       @urls = options[:urls] || ["/favicon.ico"]
       @index = options[:index]
@@ -93,13 +98,13 @@ module Rack
       # HTTP Headers
       @header_rules = options[:header_rules] || []
       # Allow for legacy :cache_control option while prioritizing global header_rules setting
-      @header_rules.unshift([:all, {CACHE_CONTROL => options[:cache_control]}]) if options[:cache_control]
+      @header_rules.unshift([:all, { CACHE_CONTROL => options[:cache_control] }]) if options[:cache_control]
 
-      @file_server = Rack::File.new(root)
+      @file_server = Rack::Files.new(root)
     end
 
     def add_index_root?(path)
-      @index && path =~ /\/$/
+      @index && route_file(path) && path.end_with?('/')
     end
 
     def overwrite_file_path(path)
@@ -120,7 +125,7 @@ module Rack
       if can_serve(path)
         if overwrite_file_path(path)
           env[PATH_INFO] = (add_index_root?(path) ? path + @index : @urls[path])
-        elsif @gzip && env['HTTP_ACCEPT_ENCODING'] =~ /\bgzip\b/
+        elsif @gzip && env['HTTP_ACCEPT_ENCODING'] && /\bgzip\b/.match?(env['HTTP_ACCEPT_ENCODING'])
           path = env[PATH_INFO]
           env[PATH_INFO] += '.gz'
           response = @file_server.call(env)
@@ -157,14 +162,14 @@ module Rack
         when :all
           true
         when :fonts
-          path =~ /\.(?:ttf|otf|eot|woff2|woff|svg)\z/
+          /\.(?:ttf|otf|eot|woff2|woff|svg)\z/.match?(path)
         when String
           path = ::Rack::Utils.unescape(path)
           path.start_with?(rule) || path.start_with?('/' + rule)
         when Array
-          path =~ /\.(#{rule.join('|')})\z/
+          /\.(#{rule.join('|')})\z/.match?(path)
         when Regexp
-          path =~ rule
+          rule.match?(path)
         else
           false
         end

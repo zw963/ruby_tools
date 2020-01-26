@@ -469,6 +469,10 @@ module RuboCop
         parent&.send_type? && parent.arguments.include?(self)
       end
 
+      def boolean_type?
+        true_type? || false_type?
+      end
+
       def numeric_type?
         int_type? || float_type?
       end
@@ -620,7 +624,7 @@ module RuboCop
       end
 
       def parent_module_name_for_block(ancestor)
-        if ancestor.method_name == :class_eval
+        if ancestor.method?(:class_eval)
           # `class_eval` with no receiver applies to whatever module or class
           # we are currently in
           return unless (receiver = ancestor.receiver)

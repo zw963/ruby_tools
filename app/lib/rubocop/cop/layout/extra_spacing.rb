@@ -82,9 +82,7 @@ module RuboCop
                           token2.text.start_with?('#')
 
           extra_space_range(token1, token2) do |range|
-            # Unary + doesn't appear as a token and needs special handling.
             next if ignored_range?(ast, range.begin_pos)
-            next if unary_plus_non_offense?(range)
 
             add_offense(range, location: range, message: MSG_UNNECESSARY)
           end
@@ -114,13 +112,9 @@ module RuboCop
           ignored_ranges(ast).any? { |r| r.include?(start_pos) }
         end
 
-        def unary_plus_non_offense?(range)
-          range.resize(range.size + 1).source =~ /^ ?\+$/
-        end
-
         # Returns an array of ranges that should not be reported. It's the
         # extra spaces between the keys and values in a multiline hash,
-        # since those are handled by the Style/AlignHash cop.
+        # since those are handled by the Layout/HashAlignment cop.
         def ignored_ranges(ast)
           return [] unless ast
 

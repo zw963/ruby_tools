@@ -12,7 +12,7 @@ module RuboCop
 
       def frozen_string_literal_comment_exists?
         leading_comment_lines.any? do |line|
-          MagicComment.parse(line).frozen_string_literal_specified?
+          MagicComment.parse(line).valid_literal_value?
         end
       end
 
@@ -40,13 +40,7 @@ module RuboCop
       end
 
       def leading_comment_lines
-        comments = processed_source.comments
-
-        comments.each_with_object([]) do |comment, leading_comments|
-          next if comment.loc.line > 3
-
-          leading_comments << comment.text
-        end
+        processed_source.comments.first(3).map(&:text)
       end
     end
   end

@@ -1,9 +1,12 @@
+# frozen_string_literal: true
+
 require 'openssl'
 require 'zlib'
 require 'rack/request'
 require 'rack/response'
 require 'rack/session/abstract/id'
 require 'json'
+require 'base64'
 
 module Rack
 
@@ -45,15 +48,15 @@ module Rack
     #   })
     #
 
-    class Cookie < Abstract::Persisted
+    class Cookie < Abstract::PersistedSecure
       # Encode session cookies as Base64
       class Base64
         def encode(str)
-          [str].pack('m')
+          ::Base64.strict_encode64(str)
         end
 
         def decode(str)
-          str.unpack('m').first
+          ::Base64.decode64(str)
         end
 
         # Encode session cookies as Marshaled Base64 data
@@ -103,7 +106,7 @@ module Rack
 
       attr_reader :coder
 
-      def initialize(app, options={})
+      def initialize(app, options = {})
         @secrets = options.values_at(:secret, :old_secret).compact
         @hmac = options.fetch(:hmac, OpenSSL::Digest::SHA1)
 
@@ -116,8 +119,8 @@ module Rack
 
         Called from: #{caller[0]}.
         MSG
-        @coder  = options[:coder] ||= Base64::Marshal.new
-        super(app, options.merge!(:cookie_only => true))
+        @coder = options[:coder] ||= Base64::Marshal.new
+        super(app, options.merge!(cookie_only: true))
       end
 
       private
@@ -137,9 +140,7 @@ module Rack
           session_data = request.cookies[@key]
 
           if @secrets.size > 0 && session_data
-            digest, session_data = session_data.reverse.split("--", 2)
-            digest.reverse! if digest
-            session_data.reverse! if session_data
+            session_data, _, digest = session_data.rpartition('--')
             session_data = nil unless digest_match?(session_data, digest)
           end
 
@@ -147,10 +148,19 @@ module Rack
         end
       end
 
-      def persistent_session_id!(data, sid=nil)
+      def persistent_session_id!(data, sid = nil)
         data ||= {}
         data["session_id"] ||= sid || generate_sid
         data
+      end
+
+      class SessionId < DelegateClass(Session::SessionId)
+        attr_reader :cookie_value
+
+        def initialize(session_id, cookie_value)
+          super(session_id)
+          @cookie_value = cookie_value
+        end
       end
 
       def write_session(req, session_id, session, options)
@@ -165,7 +175,7 @@ module Rack
           req.get_header(RACK_ERRORS).puts("Warning! Rack::Session::Cookie data size exceeds 4K.")
           nil
         else
-          session_data
+          SessionId.new(session_id, session_data)
         end
       end
 

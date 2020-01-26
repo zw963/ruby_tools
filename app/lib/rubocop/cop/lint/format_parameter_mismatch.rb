@@ -22,16 +22,10 @@ module RuboCop
         # http://rubular.com/r/CvpbxkcTzy
         MSG = "Number of arguments (%<arg_num>i) to `%<method>s` doesn't " \
               'match the number of fields (%<field_num>i).'
-        FIELD_REGEX =
-          /(%(([\s#+-0\*]*)(\d*)?(\.\d+)?[bBdiouxXeEfgGaAcps]|%))/.freeze
-        NAMED_FIELD_REGEX = /%\{[_a-zA-Z][_a-zA-Z]+\}/.freeze
+
         KERNEL = 'Kernel'
         SHOVEL = '<<'
-        PERCENT = '%'
-        PERCENT_PERCENT = '%%'
-        DIGIT_DOLLAR_FLAG = /%(\d+)\$/.freeze
         STRING_TYPES = %i[str dstr].freeze
-        NAMED_INTERPOLATION = /%(?:<\w+>|\{\w+\})/.freeze
 
         def on_send(node)
           return unless offending_node?(node)
@@ -44,7 +38,7 @@ module RuboCop
         def offending_node?(node)
           return false unless called_on_string?(node)
           return false unless method_with_format_args?(node)
-          return false if named_mode?(node) || splat_args?(node)
+          return false if splat_args?(node)
 
           num_of_format_args, num_of_expected_fields = count_matches(node)
 
@@ -68,16 +62,6 @@ module RuboCop
 
         def method_with_format_args?(node)
           sprintf?(node) || format?(node) || percent?(node)
-        end
-
-        def named_mode?(node)
-          relevant_node = if sprintf?(node) || format?(node)
-                            node.first_argument
-                          elsif percent?(node)
-                            node.receiver
-                          end
-
-          !relevant_node.source.scan(NAMED_FIELD_REGEX).empty?
         end
 
         def splat_args?(node)
@@ -127,27 +111,17 @@ module RuboCop
 
         def expected_fields_count(node)
           return :unknown unless node.str_type?
-          return 1 if node.source =~ NAMED_INTERPOLATION
 
-          max_digit_dollar_num = max_digit_dollar_num(node)
+          format_string = RuboCop::Cop::Utils::FormatString.new(node.source)
+          return 1 if format_string.named_interpolation?
+
+          max_digit_dollar_num = format_string.max_digit_dollar_num
           return max_digit_dollar_num if max_digit_dollar_num&.nonzero?
 
-          node
-            .source
-            .scan(FIELD_REGEX)
-            .reject { |x| x.first == PERCENT_PERCENT }
-            .reduce(0) { |acc, elem| acc + arguments_count(elem[2]) }
-        end
-
-        def max_digit_dollar_num(node)
-          node.source.scan(DIGIT_DOLLAR_FLAG).map do |digit_dollar_num|
-            digit_dollar_num.first.to_i
-          end.max
-        end
-
-        # number of arguments required for the format sequence
-        def arguments_count(format)
-          format.scan('*').count + 1
+          format_string
+            .format_sequences
+            .reject(&:percent?)
+            .reduce(0) { |acc, seq| acc + seq.arity }
         end
 
         def format?(node)
