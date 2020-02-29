@@ -9,7 +9,7 @@ module Cucumber
         STRICT_AFFECTED_TYPES = [:flaky, :undefined, :pending].freeze
 
         def self.ok?(type, be_strict = StrictConfiguration.new)
-          private
+          # private
           class_name = type.to_s.slice(0, 1).capitalize + type.to_s.slice(1..-1)
           const_get(class_name).ok?(be_strict.strict?(type))
         end
@@ -229,7 +229,7 @@ module Cucumber
         class StrictConfiguration
           attr_accessor :settings
           private :settings
-          
+
           def initialize(strict_types = [])
             @settings = Hash[STRICT_AFFECTED_TYPES.map { |t| [t, :default] }]
             strict_types.each do |type|
@@ -329,7 +329,7 @@ module Cucumber
           def decrement_failed
             @totals[:failed] -= 1
           end
-          
+
           private
 
           def get_total(method_name)
