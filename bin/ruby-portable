@@ -1,4 +1,4 @@
 #!/bin/sh
 
 ROOT=$(dirname `(readlink -e $0)`)/..
-/bin/bash $ROOT/ruby/bin/ruby -I$ROOT/app/lib -I$ROOT/ruby/lib/ruby/gems/2.6.0/gems/minitest-5.11.3/lib -rrbconfig "$@"
+exec -a ruby-portable /bin/bash $ROOT/ruby/bin/ruby -I$ROOT/app/lib -I$ROOT/ruby/lib/ruby/gems/2.6.0/gems/minitest-5.11.3/lib -rrbconfig "$@"
