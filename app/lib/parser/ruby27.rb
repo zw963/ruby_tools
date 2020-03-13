@@ -6297,7 +6297,8 @@ def _reduce_454(val, _values, result)
 end
 
 def _reduce_455(val, _values, result)
-                      result = @builder.const_pattern(val[0], val[1], nil, val[2])
+                      pattern = @builder.array_pattern(val[1], nil, val[2])
+                      result = @builder.const_pattern(val[0], val[1], pattern, val[2])
                     
     result
 end
@@ -6319,7 +6320,8 @@ def _reduce_457(val, _values, result)
 end
 
 def _reduce_458(val, _values, result)
-                      result = @builder.const_pattern(val[0], val[1], nil, val[2])
+                      pattern = @builder.array_pattern(val[1], nil, val[2])
+                      result = @builder.const_pattern(val[0], val[1], pattern, val[2])
                     
     result
 end
@@ -6651,6 +6653,11 @@ def _reduce_518(val, _values, result)
 end
 
 def _reduce_519(val, _values, result)
+                      name = val[1][0]
+                      unless static_env.declared?(name)
+                        diagnostic :error, :undefined_lvar, { :name => name }, val[1]
+                      end
+
                       lvar = @builder.accessible(@builder.ident(val[1]))
                       result = @builder.pin(val[0], lvar)
                     

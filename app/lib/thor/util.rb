@@ -27,7 +27,7 @@ class Thor
       end
 
       # Receives a constant and converts it to a Thor namespace. Since Thor
-      # commands can be added to a sandbox, this method is also responsable for
+      # commands can be added to a sandbox, this method is also responsible for
       # removing the sandbox namespace.
       #
       # This method should not be used in general because it's used to deal with
@@ -262,6 +262,22 @@ class Thor
       #
       def escape_globs(path)
         path.to_s.gsub(/[*?{}\[\]]/, '\\\\\\&')
+      end
+
+      # Returns a string that has had any HTML characters escaped.
+      #
+      # ==== Examples
+      #
+      #   Thor::Util.escape_html('<div>')   # => "&lt;div&gt;"
+      #
+      # ==== Parameters
+      # String
+      #
+      # ==== Returns
+      # String
+      #
+      def escape_html(string)
+        CGI.escapeHTML(string)
       end
     end
   end
