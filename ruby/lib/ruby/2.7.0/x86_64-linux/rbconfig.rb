@@ -10,7 +10,7 @@
 
 module RbConfig
   RUBY_VERSION.start_with?("2.7.") or
-    raise "ruby lib version (2.7.0) doesn't match executable version (#{RUBY_VERSION})"
+    raise "ruby lib version (2.7.1) doesn't match executable version (#{RUBY_VERSION})"
 
   # Ruby installed directory.
   TOPDIR = File.dirname(__FILE__).chomp!("/lib/ruby/2.7.0/x86_64-linux")
@@ -21,8 +21,8 @@ module RbConfig
   CONFIG["DESTDIR"] = DESTDIR
   CONFIG["MAJOR"] = "2"
   CONFIG["MINOR"] = "7"
-  CONFIG["TEENY"] = "0"
-  CONFIG["PATCHLEVEL"] = "0"
+  CONFIG["TEENY"] = "1"
+  CONFIG["PATCHLEVEL"] = "83"
   CONFIG["INSTALL"] = '/usr/bin/install -c'
   CONFIG["EXEEXT"] = ""
   CONFIG["prefix"] = (TOPDIR || DESTDIR + "/tmp/ruby")

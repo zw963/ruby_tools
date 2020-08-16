@@ -547,8 +547,7 @@ end
 begin
   require 'rubygems'
 
-  # rdoc_extensions = Gem.find_files 'rdoc/discover'
-  rdoc_extensions = []
+  rdoc_extensions = Gem.find_files 'rdoc/discover'
 
   rdoc_extensions.each do |extension|
     begin
