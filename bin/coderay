@@ -5,4 +5,4 @@ export RUBYLIB=
 ROOT=$(dirname `(readlink -e $0)`)
 name=$(basename $0)
 
-$ROOT/ruby-portable $ROOT/../app/bin/$name "$@"
+$ROOT/ruby-portable $ROOT/../app/gems/coderay-1.1.3/bin/$name "$@"

@@ -1,8 +1,8 @@
 #!/bin/sh
 
 ROOT=$(dirname `(readlink -e $0)`)/..
+# ROOT=$(realpath -L $ROOT)
 
-# readlink -e $ROOT
 load_path_directories="-I$ROOT/app/lib"
 load_path_directories+=" -I$ROOT/ruby/lib/ruby/gems/2.7.0/gems/minitest-5.13.0/lib"
 

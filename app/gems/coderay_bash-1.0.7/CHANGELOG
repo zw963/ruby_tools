@@ -1,0 +1,58 @@
+v1.0.6
+------
+
+* license file added
+
+v1.0.5
+------
+
+* register .sh file extension with :bash scanner (by Alexandre Vezina)
+
+v1.0.4
+------
+
+* fix issue #10
+* fix source
+
+v1.0.3
+------
+
+* fix function closing bracket (by codez)
+* fix # in string is not a comment (by codez)
+
+
+v1.0.2
+------
+
+* fix nested shells
+
+
+v1.0.1
+------
+
+* fix open single quote
+* support for heredoc
+
+
+v1.0
+----
+
+* compatible with coderay 1.0
+* `` doesn't change state but sets @shell variable to true
+* support for arrays
+* fix comments
+
+
+v0.2.1
+------
+
+* option :ignore_errors; default => true
+* fix string parsing
+
+
+v0.2.0
+------
+
+* the bash scanner can be use in combination with other scanners
+* new type added :erb_bash -- erb code in bash strings (thx to codez.ch)
+
