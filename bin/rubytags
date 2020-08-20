@@ -46,6 +46,7 @@ if [[ "$*" == . ]]; then
     $rippertags --force $exclude_lists -Ref ./TAGS .
 else
     # default create ruby stdlib tags.
+    set -x
     $rippertags --force $exclude_lists -Ref $MY_RUBY_HOME/TAGS $MY_RUBY_HOME/lib/ruby
     $rippertags --force $exclude_lists -Ref $GEM_HOME/TAGS $GEM_HOME/gems
     $rippertags --force $exclude_lists -Ref ./TAGS .
