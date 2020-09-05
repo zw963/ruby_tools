@@ -1,0 +1,8 @@
+#!/bin/sh
+
+export RUBYOPT=
+export RUBYLIB=
+ROOT=$(dirname `(readlink -e $0)`)
+name=$(basename $0)
+
+exec -a rubocop-daemon $ROOT/ruby-portable $ROOT/../app/gems/rubocop-daemon-0.3.2/exe/$name "$@"
