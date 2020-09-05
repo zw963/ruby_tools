@@ -5,4 +5,4 @@ export RUBYOPT=
 export RUBYLIB=$ROOT
 
 basename=$(basename $0)
-$ROOT/ruby-portable $ROOT/../app/bin/$basename "$@"
+$ROOT/ruby-portable $ROOT/../app/gems/rufo-0.12.0/exe/$basename "$@"

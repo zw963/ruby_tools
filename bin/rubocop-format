@@ -5,4 +5,6 @@ export RUBYLIB=
 ROOT=$(dirname `(readlink -e $0)`)
 name=$(basename $0)
 
+# If only check, don't want to fix, use `rubocop --only Layout'
+
 exec -a rubocop $ROOT/ruby-portable $ROOT/../app/gems/rubocop-0.89.1/exe/$name --fix-layout
