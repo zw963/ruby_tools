@@ -1,1 +1,1 @@
-#  Many ruby tools(gems) combined with travelling ruby for use independently. 
+#  (ruby gems+travelling ruby) for use independent of each project.
