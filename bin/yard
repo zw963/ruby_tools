@@ -5,4 +5,4 @@ export RUBYLIB=
 ROOT=$(dirname `(readlink -e $0)`)
 name=$(basename $0)
 
-$ROOT/ruby-portable $ROOT/../app/gems/yard-0.9.25/bin/$name "$@"
+$ROOT/ruby-portable $ROOT/../app/gems/yard-0.9.26/bin/$name "$@"

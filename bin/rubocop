@@ -5,4 +5,4 @@ export RUBYLIB=
 ROOT=$(dirname `(readlink -e $0)`)
 name=$(basename $0)
 
-exec -a rubocop $ROOT/ruby-portable $ROOT/../app/gems/rubocop-0.89.1/exe/$name "$@"
+exec -a rubocop $ROOT/ruby-portable $ROOT/../app/gems/rubocop-1.12.1/exe/$name "$@"
