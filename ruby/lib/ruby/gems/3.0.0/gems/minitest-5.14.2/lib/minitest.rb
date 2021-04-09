@@ -8,7 +8,7 @@ require "stringio"
 # :include: README.rdoc
 
 module Minitest
-  VERSION = "5.13.0" # :nodoc:
+  VERSION = "5.14.2" # :nodoc:
   ENCS = "".respond_to? :encoding # :nodoc:
 
   @@installed_at_exit ||= false
@@ -238,7 +238,9 @@ module Minitest
   end
 
   def self.filter_backtrace bt # :nodoc:
-    backtrace_filter.filter bt
+    result = backtrace_filter.filter bt
+    result = bt.dup if result.empty?
+    result
   end
 
   ##
@@ -907,24 +909,21 @@ module Minitest
   # Assertion wrapping an unexpected error that was raised during a run.
 
   class UnexpectedError < Assertion
-    attr_accessor :exception # :nodoc:
+    # TODO: figure out how to use `cause` instead
+    attr_accessor :error # :nodoc:
 
-    def initialize exception # :nodoc:
+    def initialize error # :nodoc:
       super "Unexpected exception"
-      self.exception = exception
+      self.error = error
     end
 
     def backtrace # :nodoc:
-      self.exception.backtrace
-    end
-
-    def error # :nodoc:
-      self.exception
+      self.error.backtrace
     end
 
     def message # :nodoc:
       bt = Minitest.filter_backtrace(self.backtrace).join "\n    "
-      "#{self.exception.class}: #{self.exception.message}\n    #{bt}"
+      "#{self.error.class}: #{self.error.message}\n    #{bt}"
     end
 
     def result_label # :nodoc:
@@ -1008,12 +1007,13 @@ module Minitest
     MT_RE = %r%lib/minitest% #:nodoc:
 
     ##
-    # Filter +bt+ to something useful. Returns the whole thing if $DEBUG.
+    # Filter +bt+ to something useful. Returns the whole thing if
+    # $DEBUG (ruby) or $MT_DEBUG (env).
 
     def filter bt
       return ["No backtrace"] unless bt
 
-      return bt.dup if $DEBUG
+      return bt.dup if $DEBUG || ENV["MT_DEBUG"]
 
       new_bt = bt.take_while { |line| line !~ MT_RE }
       new_bt = bt.select     { |line| line !~ MT_RE } if new_bt.empty?

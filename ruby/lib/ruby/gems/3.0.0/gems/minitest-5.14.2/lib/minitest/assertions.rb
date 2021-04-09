@@ -341,6 +341,10 @@ module Minitest
       x = send out_msg, stdout, out, "In stdout" if out_msg
 
       (!stdout || x) && (!stderr || y)
+    rescue Assertion
+      raise
+    rescue => e
+      raise UnexpectedError, e
     end
 
     ##
@@ -399,7 +403,7 @@ module Minitest
       rescue *exp => e
         pass # count assertion
         return e
-      rescue Minitest::Skip, Minitest::Assertion
+      rescue Minitest::Assertion # incl Skip & UnexpectedError
         # don't count assertion
         raise
       rescue SignalException, SystemExit
@@ -485,6 +489,10 @@ module Minitest
       end
 
       assert caught, message(msg) { default }
+    rescue Assertion
+      raise
+    rescue => e
+      raise UnexpectedError, e
     end
 
     ##
@@ -557,6 +565,11 @@ module Minitest
           captured_stderr.unlink
           $stdout.reopen orig_stdout
           $stderr.reopen orig_stderr
+
+          orig_stdout.close
+          orig_stderr.close
+          captured_stdout.close
+          captured_stderr.close
         end
       end
     end
@@ -615,7 +628,7 @@ module Minitest
 
     def refute test, msg = nil
       msg ||= message { "Expected #{mu_pp(test)} to not be truthy" }
-      not assert !test, msg
+      assert !test, msg
     end
 
     ##
