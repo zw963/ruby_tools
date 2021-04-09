@@ -17,7 +17,7 @@ module RuboCop
         '[g]ithub'      => GitHubActionsFormatter,
         '[h]tml'        => HTMLFormatter,
         '[j]son'        => JSONFormatter,
-        '[ju]nit'       => JUnitFormatter,
+        # '[ju]nit'       => JUnitFormatter,
         '[o]ffenses'    => OffenseCountFormatter,
         '[pa]cman'      => PacmanFormatter,
         '[p]rogress'    => ProgressFormatter,

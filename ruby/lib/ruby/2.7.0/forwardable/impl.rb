@@ -1,16 +1,16 @@
 # :stopdoc:
 module Forwardable
   def self._valid_method?(method)
-    catch {|tag|
-      eval("BEGIN{throw tag}; ().#{method}", binding, __FILE__, __LINE__)
-    }
+    iseq = RubyVM::InstructionSequence.compile("().#{method}", nil, nil, 0, false)
   rescue SyntaxError
     false
   else
-    true
+    iseq.to_a.dig(-1, 1, 1, :mid) == method.to_sym
   end
 
   def self._compile_method(src, file, line)
-    eval(src, nil, file, line)
+    RubyVM::InstructionSequence.compile(src, file, file, line,
+               trace_instruction: false)
+      .eval
   end
 end

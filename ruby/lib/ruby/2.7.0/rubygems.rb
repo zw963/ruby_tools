@@ -1,3 +1,5 @@
+require 'rbconfig'
+
 module Gem
   class LoadError < StandardError
   end
