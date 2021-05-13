@@ -1,0 +1,19 @@
+inherit_from: .rubocop_todo.yml
+
+AllCops:
+  DisplayCopNames: true
+  DisplayStyleGuide: true
+  Exclude:
+    - "spec/**/*"
+    - "vendor/**/*"
+Documentation:
+  Enabled: false
+
+HashSyntax:
+  Enabled: false
+
+MethodName:
+  Enabled: false
+
+StringLiterals:
+  Enabled: false
