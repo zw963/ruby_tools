@@ -42,12 +42,17 @@ if [ $INCLUDED__js ]; then
             --regex-js="/(,|^)[ \t]*([A-Za-z_$][A-Za-z0-9_$]+)[ \t]*:[ \t]*[^=]+([,;]|$)/\2/,variable/"
 fi
 
-if [[ "$*" == . ]]; then
-    $rippertags --force $exclude_lists -Ref ./TAGS .
-else
+if [[ "$#" -eq 0 ]]; then
     # default create ruby stdlib tags.
     set -x
-    $rippertags --force $exclude_lists -Ref $MY_RUBY_HOME/TAGS $MY_RUBY_HOME/lib/ruby
-    $rippertags --force $exclude_lists -Ref $GEM_HOME/TAGS $GEM_HOME/gems
-    $rippertags --force $exclude_lists -Ref ./TAGS .
+
+    ruby_std_tag="$MY_RUBY_HOME/TAGS"
+    [[ -e "$ruby_std_tag" ]] || $rippertags --force $exclude_lists -Ref $ruby_std_tag $MY_RUBY_HOME/lib/ruby
+
+    gem_tag="$GEM_HOME/TAGS"
+    gems_folder="$GEM_HOME/gems"
+
+    [ "$gems_folder" -nt "$gem_tag" ] && $rippertags --force $exclude_lists -Ref $gem_tag $GEM_HOME/gems
 fi
+
+$rippertags --force $exclude_lists -Ref ./TAGS .
