@@ -10,7 +10,7 @@
 
 module RbConfig
   RUBY_VERSION.start_with?("3.0.") or
-    raise "ruby lib version (3.0.1) doesn't match executable version (#{RUBY_VERSION})"
+    raise "ruby lib version (3.0.2) doesn't match executable version (#{RUBY_VERSION})"
 
   # Ruby installed directory.
   TOPDIR = File.dirname(__FILE__).chomp!("/lib/ruby/3.0.0/x86_64-linux")
@@ -21,8 +21,8 @@ module RbConfig
   CONFIG["DESTDIR"] = DESTDIR
   CONFIG["MAJOR"] = "3"
   CONFIG["MINOR"] = "0"
-  CONFIG["TEENY"] = "1"
-  CONFIG["PATCHLEVEL"] = "64"
+  CONFIG["TEENY"] = "2"
+  CONFIG["PATCHLEVEL"] = "107"
   CONFIG["INSTALL"] = '/usr/bin/install -c'
   CONFIG["EXEEXT"] = ""
   CONFIG["prefix"] = (TOPDIR || DESTDIR + "/tmp/ruby")
@@ -142,8 +142,6 @@ module RbConfig
   CONFIG["RMDIR"] = "rmdir --ignore-fail-on-non-empty"
   CONFIG["CP"] = "cp"
   CONFIG["RM"] = "rm -f"
-  CONFIG["EGREP"] = "/usr/bin/grep -E"
-  CONFIG["GREP"] = "/usr/bin/grep"
   CONFIG["PKG_CONFIG"] = "pkg-config"
   CONFIG["DOXYGEN"] = ""
   CONFIG["DOT"] = ""
@@ -168,6 +166,8 @@ module RbConfig
   CONFIG["CPPOUTFILE"] = "-o conftest.i"
   CONFIG["GNU_LD"] = "yes"
   CONFIG["GCC"] = "yes"
+  CONFIG["EGREP"] = "/usr/bin/grep -E"
+  CONFIG["GREP"] = "/usr/bin/grep"
   CONFIG["CPP"] = "$(CC) -E"
   CONFIG["CXXFLAGS"] = "-I/usr/local/override/include"
   CONFIG["OBJEXT"] = "o"
