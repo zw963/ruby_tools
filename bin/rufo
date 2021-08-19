@@ -1,8 +1,10 @@
 #!/bin/sh
 
-ROOT=$(dirname `(readlink -e $0)`)
 export RUBYOPT=
-export RUBYLIB=$ROOT
+export RUBYLIB=
+ROOT=$(dirname `(readlink -e $0)`)
+name=$(basename $0)
 
-basename=$(basename $0)
-$ROOT/ruby-portable $ROOT/../app/gems/rufo-0.12.0/exe/$basename "$@"
+gem_folder=$(find $ROOT/../app/gems -maxdepth 1 -regex ".*/${name}-[0-9]+\.[0-9]+\.[0-9]" -type d)
+
+exec -a $name $ROOT/ruby-portable $gem_folder/exe/$name "$@"
