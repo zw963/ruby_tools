@@ -1,8 +1,0 @@
-#!/bin/sh
-
-ROOT=$(dirname `(readlink -e $0)`)
-export RUBYOPT=
-export RUBYLIB=$ROOT
-
-basename=$(basename $0)
-$ROOT/ruby-portable $ROOT/../app/bin/$basename "$@"
