@@ -1,0 +1,29 @@
+# 如果使用这个 task, 必须首先更改本地开发模式的 config.assets.prefix = "/dev-assets"
+# 即, 开发生成的 assets 放到一个单独的目录中.
+# 否则会引起了本地加入 assets_precompile 中的文件编译失效.
+
+# 而且, 这个 task 对于单独绑定 ruby 的 capistrano 是无效的.
+# 因为 sh "RAILS_ENV=#{fetch(:stage)} bundle exec rake assets:precompile" 运行失败.
+
+# Clear existing task so we can replace it rather than "add" to it.
+Rake::Task['deploy:assets:precompile'].clear
+
+namespace :deploy do
+  namespace :assets do
+    desc 'Precompile assets locally and then rsync to app servers'
+    task :precompile do
+      sh "RAILS_ENV=#{fetch(:stage)} bundle exec rake assets:precompile"
+
+      # sync to remote server
+      on roles(:web) do
+        # this needs to be done outside run_locally in order for host to exist
+        local_dir = './public/assets/'
+        remote_dir = "#{host.user}@#{host.hostname}:#{shared_path}/public/assets"
+
+        run_locally do
+          execute "rsync -htpPvr -z -u #{local_dir} #{remote_dir}"
+        end
+      end
+    end
+  end
+end
