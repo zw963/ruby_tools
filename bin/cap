@@ -4,6 +4,6 @@ export RUBYOPT=
 export RUBYLIB=
 ROOT=$(dirname `(readlink -e $0)`)
 
-gem_folder=$(find $ROOT/../app/gems -maxdepth 1 -regex ".*/capistrano-[0-9]+\.[0-9]+\.[0-9]+" -type d)
+gem_folder=$(find $ROOT/../app/capistrano/gems -maxdepth 1 -regex ".*/capistrano-[0-9]+\.[0-9]+\.[0-9]+" -type d)
 
-exec -a cap $ROOT/ruby-portable $gem_folder/bin/cap "$@"
+exec -a cap $ROOT/ruby-capistrano $gem_folder/bin/cap "$@"
