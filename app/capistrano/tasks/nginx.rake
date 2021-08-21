@@ -12,4 +12,4 @@ task :update_nginx, :use_git do |_task_name, args|
   end
 end
 
-after 'deploy:finished', "update_nginx"
+after 'deploy:finished', 'update_nginx'

@@ -1,0 +1,38 @@
+Rake::Task['deploy:assets:precompile'].clear_actions
+
+namespace :deploy do
+  namespace :assets do
+    desc 'Hack for original precompile for skip assets precompile when possible'
+    task :precompile do
+      # 如果不存在 current, 总是运行 assets precompile (表示这是第一次部署)
+      condition1 = "[ ! -L #{fetch(:deploy_to)}/current ]"
+      # 如果 assets 中存在任何 erb 文件, 总是运行 assets precompile.
+      condition2 = "find #{fetch(:release_path)}/app/assets #{fetch(:release_path)}/lib/assets
+  #{fetch(:release_path)}/vendor/assets -name '*.erb' |grep -qs '.*'"
+      # 如果有新的 Gem 被安装.
+      # condition3 = "! diff -q #{release_path}/Gemfile.lock #{current_path}/Gemfile.lock"
+      #  如果 assets 中有任何文件被修改, 总是运行 assets precompile.
+      # condition4 = "! diff -q #{release_path}/app/assets #{current_path}/app/assets"
+      # condition5 = "! diff -q #{release_path}/lib/assets #{current_path}/lib/assets"
+      # condition6 = "! diff -q #{release_path}/vendor/assets #{current_path}/vendor/assets"
+      condition3 = "cd #{fetch(:repo_path)} && cd #{fetch(:repo_path)} && git diff --name-only #{fetch(:previous_revision)} HEAD |egrep -e '(app|lib|vendor)/assets' -e 'Gemfile\.lock'"
+
+      # assets_roles 默认值是 [:web], release_roles 啥意思?
+
+      # 这个 condition 有问题, 暂时不用了, 效果不明显.
+
+      on release_roles(fetch(:assets_roles)) do
+        info '[deploy:assets:precompile] Checking changes in assets'
+        if test(condition1) or test(condition2) or test(condition3)
+          within release_path do
+            with rails_env: fetch(:rails_env) do
+              execute :rake, 'assets:precompile'
+            end
+          end
+        else
+          info '[deploy:assets:precompile] Skip `deploy:assets:precompile` (nothing changed in assets)'
+        end
+      end
+    end
+  end
+end

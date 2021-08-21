@@ -6,7 +6,7 @@ namespace :sidekiq do
         info 'sidekiq is running...'
       else
         within release_path do
-          execute :bundle, "exec sidekiq -e #{fetch(:rails_env)} -d"
+          execute :bundle, "exec sidekiq -e production -L log/sidekiq.log -P #{fetch(:sidekiq_pid)} -d"
         end
       end
     end
@@ -35,7 +35,7 @@ namespace :sidekiq do
     end
   end
 
-  desc 'stop pulling new work and finish all current work'
+  desc 'quiet sidekiq daemon'
   task :quiet do
     on roles(:worker) do
       if test_running(:sidekiq_pid)
