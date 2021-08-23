@@ -9,15 +9,16 @@ def pid(cap_pid_file_sym)
   "`cat #{pid_file}`"
 end
 
-def config_update(ubuntu_config_path:, centos_config_path:, service_name:, restart_service_command:, check_config_command: nil, check_running_status_command: nil, args:)
-  if test '[[ $(cat /etc/*-release) =~ Ubuntu ]]'
-    system_config_dir = Pathname(ubuntu_config_path)
-  elsif test '[[ $(cat /etc/*-release) =~ CentOS ]]'
-    system_config_dir = Pathname(centos_config_path)
-  else
-    info "Current linux distribution not supported, skip `#{service_name}`!"
-    exit
-  end
+def config_update(system_config_dir:, service_name:, restart_service_command:, check_config_command: nil, check_running_status_command: nil, args:)
+  # if test '[[ $(cat /etc/*-release) =~ Ubuntu ]]'
+  #   system_config_dir = Pathname(ubuntu_config_path)
+  # elsif test '[[ $(cat /etc/*-release) =~ CentOS ]]'
+  #   system_config_dir = Pathname(centos_config_path)
+  # else
+  #   info "Current linux distribution not supported, skip `#{service_name}`!"
+  #   exit
+  # end
+  system_config_dir = Pathname(system_config_dir) unless system_config_dir.is_a?(Pathname)
 
   if not args[:use_git].nil?
     invoke 'git:clone'
@@ -33,7 +34,7 @@ def config_update(ubuntu_config_path:, centos_config_path:, service_name:, resta
   # 这里使用 find, 是因为我们要获取服务上的文件列表，不是本地。
   # 这里只是部署具有和当前 stage 后缀一样的配置文件，例如：stage 是 production,
   # 这里只部署 nginx_prodution.conf, 而不部署 nginx_staging.conf
-  project_config_files = capture("find #{project_config_dir} -name *#{project_config_suffix}*").split("\n").map {|e| Pathname(e) }
+  project_config_files = capture("find #{project_config_dir} -name *#{project_config_suffix}*.erb").split("\n").map {|e| Pathname(e) }
 
   should_reload_service = false
 
@@ -75,7 +76,7 @@ HEREDOC
   return info "Skip reboot #{service_name} because no config is changed." if should_reload_service == false
 
   unless check_config_command.nil?
-    info 'Checking config'
+    info 'Checking configurations'
     execute :sudo, check_config_command
   end
 
