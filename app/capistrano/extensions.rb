@@ -29,29 +29,24 @@ def config_update(system_config_dir:, service_name:, restart_service_command:, c
   end
 
   deploy_to = capture("cd #{deploy_to()}; pwd")
-  project_config_dir = "#{deploy_to}/current/config/#{service_name}"
-  project_config_suffix = "_#{fetch(:stage)}"
+  project_config_dir = "#{deploy_to}/current/config/#{service_name}/#{fetch(:stage)}"
   # 这里使用 find, 是因为我们要获取服务上的文件列表，不是本地。
-  # 这里只是部署具有和当前 stage 后缀一样的配置文件，例如：stage 是 production,
-  # 这里只部署 nginx_prodution.conf, 而不部署 nginx_staging.conf
-  project_config_files = capture("find #{project_config_dir} -name *#{project_config_suffix}*.erb").split("\n").map {|e| Pathname(e) }
+  project_config_files = capture("find #{project_config_dir} -name *.erb").split("\n").map {|e| Pathname(e) }
 
   should_reload_service = false
 
   project_config_files.each do |project_config_file|
-    if project_config_file.extname.end_with? ".erb"
-      old_project_config_file = project_config_file
-      project_config_file = old_project_config_file.sub_ext('') # remove .erb suffix
-      ruby_script = <<-HEREDOC
+    old_project_config_file = project_config_file
+    project_config_file = old_project_config_file.sub_ext('') # remove .erb suffix
+    ruby_script = <<-HEREDOC
 require "erb"
 require "yaml"
 erb = ERB.new(File.read("#{old_project_config_file}"))
 config = YAML.load_file("#{deploy_to}/current/system_config.yml").dig("#{service_name}", "#{fetch(:stage)}")
 File.write("#{project_config_file}", erb.result_with_hash(config.merge("config_base_name"=>"#{project_config_file.basename(".conf")}")))
 HEREDOC
-      info "generating #{project_config_file}"
-      execute "ruby -e '#{ruby_script}'"
-    end
+    info "generating #{project_config_file}"
+    execute "ruby -e '#{ruby_script}'"
 
     system_config_name = project_config_file.relative_path_from(project_config_dir)
     system_config_file = system_config_dir.join(system_config_name)
@@ -66,7 +61,7 @@ HEREDOC
 
     # if system config exist, and new than project one, maybe someone changed it.
     if test "[[ -e #{system_config_file} && #{system_config_file} -nt #{project_config_file} ]]"
-      # should backup it.
+      # backup it before overwrite.
       execute :sudo, "mv #{system_config_file} #{system_config_file}-#{Time.now.strftime('%Y-%m-%d_%H:%M:%S')}"
     end
 
