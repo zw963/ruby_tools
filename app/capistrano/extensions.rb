@@ -1,3 +1,8 @@
+# require 'rake'
+
+# rake_require "#{__dir__}/tasks/migrate"
+# rake_require "#{__dir__}/tasks/assets"
+
 # following method used in rake tasks.
 def test_running(cap_pid_file_sym)
   pid_file = fetch(cap_pid_file_sym)

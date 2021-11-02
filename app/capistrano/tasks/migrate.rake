@@ -10,3 +10,4 @@ namespace :deploy do
 end
 
 after 'deploy:updated', 'deploy:migrate'
+after 'deploy:migrate', 'deploy:assets'

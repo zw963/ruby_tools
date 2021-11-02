@@ -41,5 +41,4 @@ namespace :deploy do
   #   end
 end
 
-after 'deploy:updated', 'deploy:assets'
 after 'deploy:assets', 'deploy:deflate'
