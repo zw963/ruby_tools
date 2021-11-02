@@ -1,10 +1,14 @@
 #!/bin/sh
 
-# export RUBYOPT=
-# export RUBYLIB=
 ROOT=$(dirname `(readlink -e $0)`)
 name=$(basename $0)
 
-gem_folder=$(find $ROOT/../app/gems -maxdepth 1 -regex ".*/${name}-[0-9.]+" -type d)
+load_path_directories=""
 
-exec -a $name /usr/bin/env ruby $gem_folder/bin/$name "$@"
+for i in $(find $ROOT/../app/solargraph -maxdepth 1 -type d -regex '.*-[0-9.]+'); do
+    load_path_directories+=" -I${i}/lib"
+done
+
+gem_folder=$(find $ROOT/../app/solargraph -maxdepth 1 -regex ".*/${name}-[0-9.]+" -type d)
+
+exec -a $name /usr/bin/env ruby $load_path_directories $gem_folder/bin/$name "$@"
