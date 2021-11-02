@@ -5,7 +5,7 @@ ROOT=$(dirname `(readlink -e $0)`)/..
 
 load_path_directories="-I$ROOT/app/lib"
 
-for i in $(find $ROOT/app/gems $ROOT/ruby/lib/ruby/gems/3.0.0/gems -maxdepth 1 -type d -regex '.*-[0-9.]+'); do
+for i in $(find $ROOT/app/gems $ROOT/app/rubocop $ROOT/ruby/lib/ruby/gems/3.0.0/gems -maxdepth 1 -type d -regex '.*-[0-9.]+'); do
     load_path_directories+=" -I${i}/lib"
 done
 
