@@ -6,6 +6,17 @@ namespace :procodile do
     end
   end
 
+  desc 'Quiet the crawler process'
+  task :quiet_crawler do
+    on roles(fetch(:procodile_roles, [:app])) do
+      crawler_processes = fetch(:crawler, []).join(',')
+
+      unless crawler_processes.empty?
+        rvm_run "procodile stop -r #{current_path} -p #{crawler_processes}"
+      end
+    end
+  end
+
   desc 'Stop procodile processes'
   task :stop do
     on roles(fetch(:procodile_roles, [:app])) do
@@ -27,4 +38,5 @@ namespace :procodile do
   end
 end
 
+before 'deploy:started', 'procodile:quiet_crawler'
 after 'deploy:finished', "procodile:restart"

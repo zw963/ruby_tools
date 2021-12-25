@@ -35,8 +35,11 @@ def config_update(system_config_dir:, service_name:, restart_service_command:, c
 
   deploy_to = capture("cd #{deploy_to()}; pwd")
   project_config_dir = "#{deploy_to}/current/config/#{service_name}/#{fetch(:stage)}"
+
   # 这里使用 find, 是因为我们要获取服务上的文件列表，不是本地。
   project_config_files = capture("find #{project_config_dir} -name *.erb").split("\n").map {|e| Pathname(e) }
+
+  return info "Skip deploy #{service_name}." if project_config_files.empty?
 
   should_reload_service = false
 
@@ -48,6 +51,7 @@ require "erb"
 require "yaml"
 erb = ERB.new(File.read("#{old_project_config_file}"))
 config = YAML.load_file("#{deploy_to}/current/Procfile.local").dig("#{service_name}", "#{fetch(:stage)}")
+raise "ERB config not set in Procofile.local" if config.nil?
 File.write("#{project_config_file}", erb.result_with_hash(config.merge("config_base_name"=>"#{project_config_file.basename(".conf")}")))
 HEREDOC
     info "generating #{project_config_file}"

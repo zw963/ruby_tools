@@ -5,7 +5,7 @@ task :update_nginx, :use_git do |_task_name, args|
       service_name: 'nginx',
       system_config_dir: '/etc/nginx',
       check_config_command: 'nginx -t',
-      restart_service_command: 'nginx -s reload',
+      restart_service_command: 'systemctl restart nginx',
       args: args
     )
   end
