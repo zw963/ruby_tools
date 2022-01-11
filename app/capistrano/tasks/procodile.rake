@@ -11,7 +11,8 @@ namespace :procodile do
     on roles(fetch(:procodile_roles, [:app])) do
       crawler_processes = fetch(:crawler, []).join(',')
 
-      unless crawler_processes.empty?
+      if not crawler_processes.empty? and test('procodile status')
+        puts '1'*100
         rvm_run "procodile stop -r #{current_path} -p #{crawler_processes}"
       end
     end
