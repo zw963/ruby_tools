@@ -9,6 +9,6 @@ for i in $(find $ROOT/../app/solargraph $ROOT/../app/rubocop -maxdepth 1 -type d
     load_path_directories+=" -I${i}/lib"
 done
 
-gem_folder=$(find $ROOT/../app/solargraph -maxdepth 1 -regex ".*/${name}-[0-9.]+" -type d)
+gem_folder=$(find $ROOT/../app/solargraph -maxdepth 1 -type d -regex ".*/${name}-[0-9.]+")
 
 exec -a $name /usr/bin/env ruby $load_path_directories $gem_folder/bin/$name "$@"
