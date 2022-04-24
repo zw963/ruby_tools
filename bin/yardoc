@@ -1,10 +1,1 @@
-#!/bin/sh
-
-export RUBYOPT=
-export RUBYLIB=
-ROOT=$(dirname `(readlink -e $0)`)
-name=$(basename $0)
-
-gem_folder=$(find $ROOT/../app/gems -maxdepth 1 -regex ".*/yard-[0-9.]+" -type d)
-
-$ROOT/ruby-portable $gem_folder/bin/$name "$@"
+yard

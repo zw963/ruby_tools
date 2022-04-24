@@ -1,4 +1,8 @@
-#!/usr/bin/env ruby
+#!/bin/sh
 
-require 'pry-remote'
-PryRemote::CLI.new.run
+ROOT=$(dirname `(readlink -e $0)`)
+name=$(basename $0)
+
+gem_folder=$(find $ROOT/../app/pryx -maxdepth 1 -regex ".*/pryx-[0-9.]+" -type d)
+
+$gem_folder/bin/$name "$@"
