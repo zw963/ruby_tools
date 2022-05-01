@@ -27,6 +27,8 @@ module Kramdown
         @footnotes = []
         @abbrevs = []
         @stack = []
+        @list_indent = @options[:list_indent]
+        @list_spacing = ' ' * (@list_indent - 2)
       end
 
       def convert(el, opts = {indent: 0})
@@ -77,7 +79,9 @@ module Kramdown
         else
           el.value.gsub(/\A\n/) do
             opts[:prev] && opts[:prev].type == :br ? '' : "\n"
-          end.gsub(/\s+/, ' ').gsub(ESCAPED_CHAR_RE) { "\\#{$1 || $2}" }
+          end.gsub(/\s+/, ' ').gsub(ESCAPED_CHAR_RE) do
+            $1 || !opts[:prev] || opts[:prev].type == :br ? "\\#{$1 || $2}" : $&
+          end
         end
       end
 
@@ -87,6 +91,7 @@ module Kramdown
         first&.gsub!(/^(?:(#|>)|(\d+)\.|([+-]\s))/) { $1 || $3 ? "\\#{$1 || $3}" : "#{$2}\\." }
         second&.gsub!(/^([=-]+\s*?)$/, "\\\1")
         res = [first, second, *rest].compact.join("\n") + "\n"
+        res.gsub!(/^[ ]{0,3}:/, "\\:")
         if el.children.length == 1 && el.children.first.type == :math
           res = "\\#{res}"
         elsif res.start_with?('\$$') && res.end_with?("\\$$\n")
@@ -124,7 +129,7 @@ module Kramdown
 
       def convert_li(el, opts)
         sym, width = if @stack.last.type == :ul
-                       [+'* ', el.children.first && el.children.first.type == :codeblock ? 4 : 2]
+                       ['* ' + @list_spacing, el.children.first && el.children.first.type == :codeblock ? 4 : @list_indent]
                      else
                        ["#{opts[:index] + 1}.".ljust(4), 4]
                      end
@@ -151,7 +156,7 @@ module Kramdown
       end
 
       def convert_dd(el, opts)
-        sym, width = +": ", (el.children.first && el.children.first.type == :codeblock ? 4 : 2)
+        sym, width = ": " + @list_spacing, (el.children.first && el.children.first.type == :codeblock ? 4 : @list_indent)
         if (ial = ial_for_element(el))
           sym << ial << " "
         end
