@@ -7,7 +7,7 @@ load_path_directories="-I$ROOT/app/lib"
 for i in $(find $ROOT/app/capistrano/gems $ROOT/ruby/lib/ruby/gems/*/gems -maxdepth 1 -type d -regex '.*-[0-9.]+'); do
     load_path_directories+=" -I${i}/lib"
 done
-concurrent_ruby=$(find $ROOT/app/capistrano/gems -maxdepth 1 -type d -regex '.*/concurrent-ruby-[0-9.]+')
+concurrent_ruby=$(find $ROOT/app -maxdepth 1 -type d -regex '.*/concurrent-ruby-[0-9.]+')
 load_path_directories+=" -I${concurrent_ruby}/lib/concurrent-ruby"
 
 exec -a ruby-capistrano /bin/bash $ROOT/ruby/bin/ruby $load_path_directories -rrbconfig "$@"

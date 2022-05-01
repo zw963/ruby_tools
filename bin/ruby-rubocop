@@ -10,4 +10,4 @@ done
 concurrent_ruby=$(find $ROOT/app -maxdepth 1 -type d -regex '.*/concurrent-ruby-[0-9.]+')
 load_path_directories+=" -I${concurrent_ruby}/lib/concurrent-ruby"
 
-exec -a ruby-capistrano /bin/bash $ROOT/ruby/bin/ruby $load_path_directories -rrbconfig "$@"
+exec -a ruby-rubocop /bin/bash $ROOT/ruby/bin/ruby $load_path_directories -rrbconfig "$@"
