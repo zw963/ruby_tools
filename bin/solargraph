@@ -11,6 +11,9 @@ done
 concurrent_ruby=$(find $ROOT/../app -maxdepth 1 -type d -regex '.*/concurrent-ruby-[0-9.]+')
 load_path_directories+=" -I${concurrent_ruby}/lib/concurrent-ruby"
 
+rubocop_hack=$ROOT/../app/solargraph_rubocop_hack/lib
+load_path_directories="-I$rubocop_hack $load_path_directories"
+
 gem_folder=$(find $ROOT/../app/solargraph -maxdepth 1 -type d -regex ".*/${name}-[0-9.]+")
 
 exec -a $name /usr/bin/env ruby $load_path_directories $gem_folder/bin/$name "$@"

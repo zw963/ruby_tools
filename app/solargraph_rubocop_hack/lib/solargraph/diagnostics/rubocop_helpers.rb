@@ -13,15 +13,15 @@ module Solargraph
       # @param version [String]
       # @raise [InvalidRubocopVersionError] if _version_ is not installed
       def require_rubocop(version = nil)
-        begin
-          gem_path = Gem::Specification.find_by_name('rubocop', version).full_gem_path
-          gem_lib_path = File.join(gem_path, 'lib')
-          $LOAD_PATH.unshift(gem_lib_path) unless $LOAD_PATH.include?(gem_lib_path)
-        rescue Gem::MissingSpecVersionError => e
-          raise InvalidRubocopVersionError,
-                "could not find '#{e.name}' (#{e.requirement}) - "\
-                "did find: [#{e.specs.map { |s| s.version.version }.join(', ')}]"
-        end
+        # begin
+        #   gem_path = Gem::Specification.find_by_name('rubocop', version).full_gem_path
+        #   gem_lib_path = File.join(gem_path, 'lib')
+        #   $LOAD_PATH.unshift(gem_lib_path) unless $LOAD_PATH.include?(gem_lib_path)
+        # rescue Gem::MissingSpecVersionError => e
+        #   raise InvalidRubocopVersionError,
+        #         "could not find '#{e.name}' (#{e.requirement}) - "\
+        #         "did find: [#{e.specs.map { |s| s.version.version }.join(', ')}]"
+        # end
         require 'rubocop'
       end
 
