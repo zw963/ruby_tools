@@ -1,6 +1,15 @@
 # Changelog
 
-## Unreleased
+## 0.40.0 (2022-05-06)
+### Changed
+- Remote integration (`pry-remote`) needs to be manually activated by requiring `break/remote` ([@gsamokovarov][])
+
+## 0.30.0 (2021-06-20)
+### Added
+- Officially Ruby 3.0 support. ([@gsamokovarov][])
+### Fixed
+- Fix broken `next` command for Ruby 2.7+. ([@gsamokovarov][])
+- Fix circular require for `pry` integrations. ([@gsamokovarov][])
 
 ## 0.21.0 (2020-08-19)
 ### Fixed

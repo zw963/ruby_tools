@@ -1,19 +1,3 @@
-# frozen_string_literal: true
-
-module Break::Pry
-  module PryExtensions
-    attr_accessor :__break_session__
-
-    def initialize(options = {})
-      super(options)
-
-      @__break_session__ = options[:__break_session__]
-    end
-  end
-end
-
-Pry.prepend Break::Pry::PryExtensions
-
 begin
   require "pry-remote"
 
@@ -47,6 +31,13 @@ begin
   end
 
   PryRemote::Server.prepend Break::Pry::PryRemoteServerExtensions
+
+  Break::Filter.register_internal binding.method(:remote_pry).source_location.first.chomp('.rb')
+  Break::Filter.register_internal DRb.method(:start_service).source_location.first.chomp('/drb.rb')
+
+  at_exit do
+    Break::Pry.current_remote_server&.teardown
+  end
 rescue LoadError
   # Do nothing if we cannot require pry-remote.
 end
