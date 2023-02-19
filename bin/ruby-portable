@@ -1,7 +1,6 @@
 #!/bin/sh
 
 ROOT=$(dirname `(readlink -e $0)`)/..
-# ROOT=$(realpath -L $ROOT)
 
 load_path_directories="-I$ROOT/app/lib"
 
@@ -9,4 +8,4 @@ for i in $(find $ROOT/app/gems $ROOT/ruby/lib/ruby/gems/*/gems -maxdepth 1 -type
     load_path_directories+=" -I${i}/lib"
 done
 
-exec -a ruby-portable /bin/bash $ROOT/ruby/bin/ruby -I$ROOT/app/lib $load_path_directories -rrbconfig "$@"
+exec -a ruby-portable /bin/bash $ROOT/ruby/bin/ruby $load_path_directories -rrbconfig "$@"
