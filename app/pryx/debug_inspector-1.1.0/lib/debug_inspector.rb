@@ -2,7 +2,7 @@ require 'rbconfig'
 dlext = RbConfig::CONFIG['DLEXT']
 begin
   # If the installation task did its job, the extension is in lib/ next to this file.
-  require "debug_inspector.#{dlext}"
+  require "debug_inspector.#{RbConfig::CONFIG['ruby_version']}.#{dlext}"
   # We only want to define constants if the extension has loaded.
   require_relative "rubyvm/debug_inspector/version"
 rescue LoadError
