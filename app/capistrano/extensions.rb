@@ -57,8 +57,7 @@ HEREDOC
     info "generating #{project_config_file}"
     execute "ruby -e '#{ruby_script}'"
 
-    system_config_name = project_config_file.relative_path_from(project_config_dir)
-    system_config_file = system_config_dir.join(system_config_name)
+    system_config_file = system_config_dir.join(project_config_file.relative_path_from(project_config_dir))
     system_sub_conf_dir = system_config_file.dirname
 
     # if system config exist, and two one no diff.
@@ -69,7 +68,7 @@ HEREDOC
     should_reload_service = true
 
     # if system config exist, and new than project one, maybe someone changed it.
-    if test "[[ -e #{system_config_file} && #{system_config_file} -nt #{project_config_file} ]]"
+    if test "[[ -e #{system_config_file} && #{system_config_file} -nt #{old_project_config_file} ]]"
       # backup it before overwrite.
       execute :sudo, "mv #{system_config_file} #{system_config_file}-#{Time.now.strftime('%Y-%m-%d_%H:%M:%S')}"
     end
