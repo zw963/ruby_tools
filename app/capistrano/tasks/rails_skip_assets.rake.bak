@@ -15,7 +15,7 @@ namespace :deploy do
       # condition4 = "! diff -q #{release_path}/app/assets #{current_path}/app/assets"
       # condition5 = "! diff -q #{release_path}/lib/assets #{current_path}/lib/assets"
       # condition6 = "! diff -q #{release_path}/vendor/assets #{current_path}/vendor/assets"
-      condition3 = "cd #{fetch(:repo_path)} && cd #{fetch(:repo_path)} && git diff --name-only #{fetch(:previous_revision)} HEAD |egrep -e '(app|lib|vendor)/assets' -e 'Gemfile\.lock'"
+      condition3 = "cd #{fetch(:repo_path)} && cd #{fetch(:repo_path)} && git diff --name-only #{fetch(:previous_revision)} HEAD |grep -E -e '(app|lib|vendor)/assets' -e 'Gemfile\.lock'"
 
       # assets_roles 默认值是 [:web], release_roles 啥意思?
 
