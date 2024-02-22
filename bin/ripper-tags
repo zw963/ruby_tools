@@ -19,7 +19,7 @@ if [ $(basename $0) == 'ripper-tags' ]; then
 fi
 
 if [ $INCLUDED__js ]; then
-    find . -name '*.js' -not -path "*/tmp/*" |egrep -v '(\.min|-min|jasmine.*|angular.*|jquery.*|require-.*)\.js' > /tmp/jslib &&
+    find . -name '*.js' -not -path "*/tmp/*" |grep -E -v '(\.min|-min|jasmine.*|angular.*|jquery.*|require-.*)\.js' > /tmp/jslib &&
         ctags-exuberant \
             -L /tmp/jslib -e -f CTAGS \
             --langdef=js \

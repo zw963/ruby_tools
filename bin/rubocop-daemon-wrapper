@@ -14,7 +14,7 @@ if ! command -v rubocop-daemon > /dev/null; then
 fi
 
 if [[ "$OSTYPE" == "linux-gnu" ]]; then
-    # if nc --version 2>/dev/null |head -n1 |fgrep -qe 'GNU'; then
+    # if nc --version 2>/dev/null |head -n1 |grep -F -qe 'GNU'; then
     #     echo 'Need BSD netcat installed.'
     #     exit 1
     # else
