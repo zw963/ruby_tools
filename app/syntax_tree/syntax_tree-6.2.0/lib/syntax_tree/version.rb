@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
 module SyntaxTree
-  class Formatter
-    DISABLE_TERNARY = true
-  end
+  VERSION = "6.2.0"
 end

@@ -1299,7 +1299,7 @@ module SyntaxTree
       end
     end
 
-    # [nil | VarRef] the optional constant wrapper
+    # [nil | VarRef | ConstPathRef] the optional constant wrapper
     attr_reader :constant
 
     # [Array[ Node ]] the regular positional arguments that this array
@@ -2849,7 +2849,10 @@ module SyntaxTree
             # to print the operator trailing in order to keep it working.
             last_child = children.last
             if last_child.is_a?(CallNode) && last_child.message != :call &&
-                 last_child.message.comments.any? && last_child.operator
+                 (
+                   (last_child.message.comments.any? && last_child.operator) ||
+                     (last_child.operator && last_child.operator.comments.any?)
+                 )
               q.format(CallOperatorFormatter.new(last_child.operator))
               skip_operator = true
             else
@@ -5413,7 +5416,7 @@ module SyntaxTree
   #     end
   #
   class FndPtn < Node
-    # [nil | Node] the optional constant wrapper
+    # [nil | VarRef | ConstPathRef] the optional constant wrapper
     attr_reader :constant
 
     # [VarField] the splat on the left-hand side
@@ -6035,7 +6038,7 @@ module SyntaxTree
       end
     end
 
-    # [nil | Node] the optional constant wrapper
+    # [nil | VarRef | ConstPathRef] the optional constant wrapper
     attr_reader :constant
 
     # [Array[ [DynaSymbol | Label, nil | Node] ]] the set of tuples
@@ -7207,36 +7210,17 @@ module SyntaxTree
         q.text(" ")
         q
           .if_break do
-            force_parens =
-              q.parents.any? do |node|
-                node.is_a?(Command) || node.is_a?(CommandCall)
-              end
+            q.text("do")
 
-            if force_parens
-              q.text("{")
-
-              unless statements.empty?
-                q.indent do
-                  q.breakable_space
-                  q.format(statements)
-                end
+            unless statements.empty?
+              q.indent do
                 q.breakable_space
+                q.format(statements)
               end
-
-              q.text("}")
-            else
-              q.text("do")
-
-              unless statements.empty?
-                q.indent do
-                  q.breakable_space
-                  q.format(statements)
-                end
-              end
-
-              q.breakable_space
-              q.text("end")
             end
+
+            q.breakable_space
+            q.text("end")
           end
           .if_flat do
             q.text("{")
@@ -8293,8 +8277,8 @@ module SyntaxTree
     # parameter
     attr_reader :rest
 
-    # [Array[ Ident ]] any positional parameters that exist after a rest
-    # parameter
+    # [Array[ Ident | MLHSParen ]] any positional parameters that exist after a
+    #  rest parameter
     attr_reader :posts
 
     # [Array[ [ Label, nil | Node ] ]] any keyword parameters and their

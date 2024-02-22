@@ -297,7 +297,7 @@ Note that the output of the `match` CLI command creates a valid pattern that can
 
 ### write
 
-This command will format the listed files and write that formatted version back to the source files. Note that this overwrites the original content, to be sure to be using a version control system.
+This command will format the listed files and write that formatted version back to the source files. Note that this overwrites the original content, so be sure to be using a version control system.
 
 ```sh
 stree write path/to/file.rb
@@ -525,7 +525,7 @@ With visitors, you only define handlers for the nodes that you need. You can fin
 * call `visit(child)` with each child that you want to visit
 * call nothing if you're sure you don't want to descend further
 
-There are a couple of visitors that ship with Syntax Tree that can be used as examples. They live in the [lib/syntax_tree/visitor](lib/syntax_tree/visitor) directory.
+There are a couple of visitors that ship with Syntax Tree that can be used as examples. They live in the [lib/syntax_tree](lib/syntax_tree) directory.
 
 ### visit_method
 
