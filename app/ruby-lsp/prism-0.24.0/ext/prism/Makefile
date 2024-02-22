@@ -3,7 +3,6 @@ SHELL = /bin/sh
 
 # V=0 quiet, V=1 verbose.  other values don't work.
 V = 0
-V0 = $(V:0=)
 Q1 = $(V:1=)
 Q = $(Q1:0=@)
 ECHO1 = $(V:1=@ :)
@@ -13,12 +12,12 @@ NULLCMD = :
 #### Start of system configuration section. ####
 
 srcdir = .
-topdir = /home/common/.rvm/rubies/ruby-3.3.0/include/ruby-3.3.0
+topdir = /home/common/.rvm/rubies/ruby-3.0.2/include/ruby-3.0.0
 hdrdir = $(topdir)
-arch_hdrdir = /home/common/.rvm/rubies/ruby-3.3.0/include/ruby-3.3.0/x86_64-linux
+arch_hdrdir = /home/common/.rvm/rubies/ruby-3.0.2/include/ruby-3.0.0/x86_64-linux
 PATH_SEPARATOR = :
 VPATH = $(srcdir):$(arch_hdrdir)/ruby:$(hdrdir)/ruby
-prefix = $(DESTDIR)/home/common/.rvm/rubies/ruby-3.3.0
+prefix = $(DESTDIR)/home/common/.rvm/rubies/ruby-3.0.2
 rubysitearchprefix = $(rubylibprefix)/$(sitearch)
 rubyarchprefix = $(rubylibprefix)/$(arch)
 rubylibprefix = $(libdir)/$(RUBY_BASE_NAME)
@@ -80,17 +79,17 @@ CSRCFLAG = $(empty)
 RUBY_EXTCONF_H = 
 cflags   = $(optflags) $(debugflags) $(warnflags)
 cxxflags = 
-optflags = -O3 -fno-fast-math
+optflags = -O3
 debugflags = -ggdb3
-warnflags = -Wall -Wextra -Wdeprecated-declarations -Wdiv-by-zero -Wduplicated-cond -Wimplicit-function-declaration -Wimplicit-int -Wpointer-arith -Wwrite-strings -Wold-style-definition -Wimplicit-fallthrough=0 -Wmissing-noreturn -Wno-cast-function-type -Wno-constant-logical-operand -Wno-long-long -Wno-missing-field-initializers -Wno-overlength-strings -Wno-packed-bitfield-compat -Wno-parentheses-equality -Wno-self-assign -Wno-tautological-compare -Wno-unused-parameter -Wno-unused-value -Wsuggest-attribute=format -Wsuggest-attribute=noreturn -Wunused-variable -Wmisleading-indentation -Wundef
+warnflags = -Wall -Wextra -Wdeprecated-declarations -Wduplicated-cond -Wimplicit-function-declaration -Wimplicit-int -Wmisleading-indentation -Wpointer-arith -Wwrite-strings -Wimplicit-fallthrough=0 -Wmissing-noreturn -Wno-cast-function-type -Wno-constant-logical-operand -Wno-long-long -Wno-missing-field-initializers -Wno-overlength-strings -Wno-packed-bitfield-compat -Wno-parentheses-equality -Wno-self-assign -Wno-tautological-compare -Wno-unused-parameter -Wno-unused-value -Wsuggest-attribute=format -Wsuggest-attribute=noreturn -Wunused-variable
 cppflags = 
 CCDLFLAGS = -fPIC
 CFLAGS   = $(CCDLFLAGS) $(cflags)  -fPIC -fvisibility=hidden $(ARCH_FLAG)
-INCFLAGS = -I. -I$(arch_hdrdir) -I$(hdrdir)/ruby/backward -I$(hdrdir) -I$(srcdir) -I/home/common/.rvm/gems/ruby-3.3.0@ruby-lsp/gems/prism-0.24.0/include -I/home/common/.rvm/gems/ruby-3.3.0@ruby-lsp/gems/prism-0.24.0/ext
+INCFLAGS = -I. -I$(arch_hdrdir) -I$(hdrdir)/ruby/backward -I$(hdrdir) -I$(srcdir) -I/home/zw963/Dropbox/linux/utils/ruby_tools/app/ruby-lsp/prism-0.24.0/include -I/home/zw963/Dropbox/linux/utils/ruby_tools/app/ruby-lsp/prism-0.24.0/ext
 DEFS     = 
 CPPFLAGS =   $(DEFS) $(cppflags)
 CXXFLAGS = $(CCDLFLAGS)  $(ARCH_FLAG)
-ldflags  = -L. -fstack-protector-strong -rdynamic -Wl,-export-dynamic -Wl,--no-as-needed
+ldflags  = -L. -fstack-protector-strong -rdynamic -Wl,-export-dynamic
 dldflags = -Wl,--compress-debug-sections=zlib 
 ARCH_FLAG = 
 DLDFLAGS = $(ldflags) $(dldflags) $(ARCH_FLAG)
@@ -108,14 +107,13 @@ RUBY_BASE_NAME = ruby
 
 arch = x86_64-linux
 sitearch = $(arch)
-ruby_version = 3.3.0
+ruby_version = 3.0.0
 ruby = $(bindir)/$(RUBY_BASE_NAME)
 RUBY = $(ruby)
-BUILTRUBY = $(bindir)/$(RUBY_BASE_NAME)
 ruby_headers = $(hdrdir)/ruby.h $(hdrdir)/ruby/backward.h $(hdrdir)/ruby/ruby.h $(hdrdir)/ruby/defines.h $(hdrdir)/ruby/missing.h $(hdrdir)/ruby/intern.h $(hdrdir)/ruby/st.h $(hdrdir)/ruby/subst.h $(arch_hdrdir)/ruby/config.h
 
 RM = rm -f
-RM_RF = rm -fr
+RM_RF = $(RUBY) -run -e rm -- -rf
 RMDIRS = rmdir --ignore-fail-on-non-empty -p
 MAKEDIRS = /usr/sbin/mkdir -p
 INSTALL = /usr/bin/install -c
@@ -138,8 +136,8 @@ DISTCLEANDIRS =
 extout = 
 extout_prefix = 
 target_prefix = /prism
-LOCAL_LIBS =  /home/common/.rvm/gems/ruby-3.3.0@ruby-lsp/gems/prism-0.24.0/build/libprism.a
-LIBS = $(LIBRUBYARG_SHARED)  -lm -lpthread  -lc
+LOCAL_LIBS =  /home/zw963/Dropbox/linux/utils/ruby_tools/app/ruby-lsp/prism-0.24.0/build/libprism.a
+LIBS =   -lm   -lc
 ORIG_SRCS = api_node.c api_pack.c extension.c
 SRCS = $(ORIG_SRCS) 
 OBJS = api_node.o api_pack.o extension.o
@@ -161,9 +159,8 @@ HDRDIR        = $(sitehdrdir)$(target_prefix)
 ARCHHDRDIR    = $(sitearchhdrdir)$(target_prefix)
 TARGET_SO_DIR =
 TARGET_SO     = $(TARGET_SO_DIR)$(DLLIB)
-CLEANLIBS     = $(TARGET_SO) false
-CLEANOBJS     = $(OBJS) *.bak
-TARGET_SO_DIR_TIMESTAMP = $(TIMESTAMP_DIR)/.sitearchdir.-.prism.time
+CLEANLIBS     = $(TARGET_SO) 
+CLEANOBJS     = *.o  *.bak
 
 all:    $(DLLIB)
 static: $(STATIC_LIB)
@@ -175,7 +172,7 @@ clean-rb-default::
 clean-rb::
 clean-so::
 clean: clean-so clean-static clean-rb-default clean-rb
-		-$(Q)$(RM_RF) $(CLEANLIBS) $(CLEANOBJS) $(CLEANFILES) .*.time
+		-$(Q)$(RM) $(CLEANLIBS) $(CLEANOBJS) $(CLEANFILES) .*.time
 
 distclean-rb-default::
 distclean-rb::
@@ -189,7 +186,7 @@ distclean: clean distclean-so distclean-static distclean-rb-default distclean-rb
 realclean: distclean
 install: install-so install-rb
 
-install-so: $(DLLIB) $(TARGET_SO_DIR_TIMESTAMP)
+install-so: $(DLLIB) $(TIMESTAMP_DIR)/.sitearchdir.-.prism.time
 	$(INSTALL_PROG) $(DLLIB) $(RUBYARCHDIR)
 clean-static::
 	-$(Q)$(RM) $(STATIC_LIB)
@@ -201,7 +198,7 @@ do-install-rb:
 do-install-rb-default:
 pre-install-rb-default:
 	@$(NULLCMD)
-$(TARGET_SO_DIR_TIMESTAMP):
+$(TIMESTAMP_DIR)/.sitearchdir.-.prism.time:
 	$(Q) $(MAKEDIRS) $(@D) $(RUBYARCHDIR)
 	$(Q) $(TOUCH) $@
 

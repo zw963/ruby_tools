@@ -93,7 +93,7 @@ require_relative "prism/parse_result/newlines"
 # it's going to require the built library. Otherwise, it's going to require a
 # module that uses FFI to call into the library.
 if RUBY_ENGINE == "ruby" and !ENV["PRISM_FFI_BACKEND"]
-  require "prism/prism"
+  require "prism/prism.#{RbConfig::CONFIG['ruby_version']}.#{RbConfig::CONFIG['DLEXT']}"
 else
   require_relative "prism/ffi"
 end
