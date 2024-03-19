@@ -1,0 +1,14 @@
+#!/bin/sh
+
+ROOT=$(dirname `(readlink -e $0)`)/..
+
+load_path_directories="-I$ROOT/app/lib"
+
+for i in $(find $ROOT/app/rubocop $ROOT/app/gems $ROOT/ruby/lib/ruby/gems/*/gems -maxdepth 1 -type d -regex '.*-[0-9.]+'); do
+    load_path_directories+=" -I${i}/lib"
+done
+# 这个还有用吗? 先注释掉.
+# concurrent_ruby=$(find $ROOT/app -maxdepth 1 -type d -regex '.*/concurrent-ruby-[0-9.]+')
+# load_path_directories+=" -I${concurrent_ruby}/lib/concurrent-ruby"
+
+exec -a ruby-rubocop /bin/bash $ROOT/ruby/bin/ruby $load_path_directories -rrbconfig "$@"
