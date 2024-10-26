@@ -1,0 +1,30 @@
+contexts:
+  - name: "master"
+    prelude: |-
+      require 'bundler/setup'
+      require 'enumerable/statistics'
+prelude: |-
+  n = 1000
+  ary = Array.new(n) { rand }
+benchmark:
+  inject: mean = ary.inject(:+) / n.to_f
+  while: |-
+    i, mean = 0, 0
+    while i < n
+      mean += ary[i]
+      i += 1
+    end
+    mean /= n.to_f
+  pure_ruby: |-
+    i, f, c = 0, 0.0, 0.0, 0.0, 0.0
+    while i < n
+      x = ary[i]
+      y = x - c
+      t = f + y
+      c = (t - f) - y
+      f = t
+
+      i += 1
+    end
+    mean = f / n
+  c_ext: mean = ary.mean
